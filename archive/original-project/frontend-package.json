@@ -1,0 +1,1 @@
+{"name":"atlas-frontend","private":true,"type":"module","scripts":{"start":"python3 -m http.server 8000","test":"node --test tests/*.test.js","check":"node --check app.js && node --check components/MapPanel.js"}}

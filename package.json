@@ -1,0 +1,21 @@
+{
+  "name": "atlas",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Atlas trip planner website",
+  "type": "module",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "npm run start --workspace=@atlas/backend",
+    "dev": "npm run dev --workspace=@atlas/backend",
+    "test": "npm run test --workspaces",
+    "check": "node scripts/check.mjs",
+    "test:browser": "npm run test:browser --workspace=@atlas/frontend"
+  }
+}
