@@ -1,6 +1,12 @@
 # Architecture and development conventions
 
-## Request flow
+## Backend decision
+
+As of October 6, 2026, Django (Python) is the planned backend framework. Keep the vanilla JavaScript frontend in `frontend/` and implement Django in `backend/` when migration work begins. Express is the current temporary server, not the framework selected for future backend features. See the [backend plan](backend-plan.md).
+
+The sections below describe the running Express scaffold. Django setup, Python dependencies, database configuration, and replacement startup commands have not been implemented.
+
+## Current request flow
 
 The browser requests `/`, and Express serves `frontend/public/index.html`. That page loads native ES modules and CSS from `/src/`, mapped to `frontend/src/`. The frontend uses hash navigation (`#/dashboard`, `#/trip/<id>`), so page navigation does not require backend route rewrites.
 

@@ -1,6 +1,10 @@
 # Atlas
 
-A trip-planning website with a vanilla JavaScript frontend and an Express server.
+A trip-planning website with a vanilla JavaScript frontend and a planned Django backend. The current runnable scaffold uses Express; the Django migration has not been implemented yet.
+
+## Backend direction
+
+Django (Python) is the selected framework for future backend development. The frontend and backend will remain separate under `frontend/` and `backend/`. The existing Express server currently serves the frontend and health endpoint; it is a temporary scaffold. See the [Django migration plan](docs/backend-plan.md) for the intended next steps.
 
 ## Quick start
 
@@ -42,7 +46,7 @@ Atlas/
 └── package.json            # Root commands and npm workspaces
 ```
 
-The root lockfile manages both workspaces. Install dependencies from the root. Add server dependencies with `npm install <package> --workspace=@atlas/backend`; browser code currently uses native ES modules without a bundler.
+The root lockfile currently manages both JavaScript workspaces. Install dependencies from the root. The future Django backend will use Python dependency management, documented when the migration is implemented. Browser code currently uses native ES modules without a bundler.
 
 ## Commands
 
