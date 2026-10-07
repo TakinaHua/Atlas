@@ -1,12 +1,85 @@
-import {test,beforeEach} from 'node:test';
+import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import {inclusiveDays} from '../src/utilities/dates.js';
-import {validCoordinates} from '../src/utilities/helpers.js';
+import { inclusiveDays } from '../src/utilities/dates.js';
+import { validCoordinates } from '../src/utilities/helpers.js';
 import * as s from '../src/storage/tripStorage.js';
 let data;
-beforeEach(()=>{data=new Map();globalThis.localStorage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};});
-test('inclusive dates cover same day, leap year, year boundary and DST',()=>{for(const [a,b,n] of [['2026-12-06','2026-12-09',4],['2026-01-01','2026-01-01',1],['2024-02-28','2024-03-01',3],['2026-12-31','2027-01-01',2],['2026-03-07','2026-03-10',4]])assert.equal(inclusiveDays(a,b).length,n);assert.throws(()=>inclusiveDays('2026-02-30','2026-03-05'));assert.throws(()=>inclusiveDays('2026-12-09','2026-12-06'));});
-test('create, add, edit, reorder, delete and refresh recovery preserve isolated days',()=>{let trip=s.createTrip({name:'Hawaii',destination:'Big Island',startDate:'2026-12-06',endDate:'2026-12-09'});const day=trip.days[0].date;trip=s.addPlaceToDay(trip,day,{id:'a',name:'First',latitude:0,longitude:0});trip=s.addPlaceToDay(trip,day,{id:'b',name:'Second'});assert.equal(s.loadTrips()[0].days[1].places.length,0);trip=s.changePlaces(trip,day,ps=>ps.map(p=>p.id==='a'?{...p,name:'Edited'}:p));trip=s.changePlaces(trip,day,ps=>[ps[1],ps[0]]);assert.deepEqual(s.loadTrips()[0].days[0].places.map(p=>p.name),['Second','Edited']);trip=s.removePlaceFromDay(trip,day,'b');assert.equal(s.loadTrips()[0].days[0].places[0].latitude,0);s.deleteTrip(trip.id);assert.deepEqual(s.loadTrips(),[]);});
-test('coordinate validation accepts zero and rejects missing/invalid ranges',()=>{assert.equal(validCoordinates({latitude:0,longitude:0}),true);for(const p of [{latitude:null,longitude:0},{latitude:91,longitude:0},{latitude:0,longitude:181},{latitude:NaN,longitude:0},{latitude:'0',longitude:'0'}])assert.equal(validCoordinates(p),false);});
-test('invalid saved data is preserved and reported',()=>{data.set('atlas.trips.v1','broken');assert.throws(s.loadTrips);assert.equal(data.get('atlas.trips.v1'),'broken');});
-test('storage write failure surfaces to caller',()=>{globalThis.localStorage.setItem=()=>{throw new Error('Quota exceeded');};assert.throws(()=>s.createTrip({name:'A',destination:'B',startDate:'2026-01-01',endDate:'2026-01-02'}),/Quota/);});
+beforeEach(() => {
+  data = new Map();
+  globalThis.localStorage = {
+    getItem: (k) => data.get(k) ?? null,
+    setItem: (k, v) => data.set(k, v),
+  };
+});
+test('inclusive dates cover same day, leap year, year boundary and DST', () => {
+  for (const [a, b, n] of [
+    ['2026-12-06', '2026-12-09', 4],
+    ['2026-01-01', '2026-01-01', 1],
+    ['2024-02-28', '2024-03-01', 3],
+    ['2026-12-31', '2027-01-01', 2],
+    ['2026-03-07', '2026-03-10', 4],
+  ])
+    assert.equal(inclusiveDays(a, b).length, n);
+  assert.throws(() => inclusiveDays('2026-02-30', '2026-03-05'));
+  assert.throws(() => inclusiveDays('2026-12-09', '2026-12-06'));
+});
+test('create, add, edit, reorder, delete and refresh recovery preserve isolated days', () => {
+  let trip = s.createTrip({
+    name: 'Hawaii',
+    destination: 'Big Island',
+    startDate: '2026-12-06',
+    endDate: '2026-12-09',
+  });
+  const day = trip.days[0].date;
+  trip = s.addPlaceToDay(trip, day, {
+    id: 'a',
+    name: 'First',
+    latitude: 0,
+    longitude: 0,
+  });
+  trip = s.addPlaceToDay(trip, day, { id: 'b', name: 'Second' });
+  assert.equal(s.loadTrips()[0].days[1].places.length, 0);
+  trip = s.changePlaces(trip, day, (ps) =>
+    ps.map((p) => (p.id === 'a' ? { ...p, name: 'Edited' } : p)),
+  );
+  trip = s.changePlaces(trip, day, (ps) => [ps[1], ps[0]]);
+  assert.deepEqual(
+    s.loadTrips()[0].days[0].places.map((p) => p.name),
+    ['Second', 'Edited'],
+  );
+  trip = s.removePlaceFromDay(trip, day, 'b');
+  assert.equal(s.loadTrips()[0].days[0].places[0].latitude, 0);
+  s.deleteTrip(trip.id);
+  assert.deepEqual(s.loadTrips(), []);
+});
+test('coordinate validation accepts zero and rejects missing/invalid ranges', () => {
+  assert.equal(validCoordinates({ latitude: 0, longitude: 0 }), true);
+  for (const p of [
+    { latitude: null, longitude: 0 },
+    { latitude: 91, longitude: 0 },
+    { latitude: 0, longitude: 181 },
+    { latitude: NaN, longitude: 0 },
+    { latitude: '0', longitude: '0' },
+  ])
+    assert.equal(validCoordinates(p), false);
+});
+test('invalid saved data is preserved and reported', () => {
+  data.set('atlas.trips.v1', 'broken');
+  assert.throws(s.loadTrips);
+  assert.equal(data.get('atlas.trips.v1'), 'broken');
+});
+test('storage write failure surfaces to caller', () => {
+  globalThis.localStorage.setItem = () => {
+    throw new Error('Quota exceeded');
+  };
+  assert.throws(
+    () =>
+      s.createTrip({
+        name: 'A',
+        destination: 'B',
+        startDate: '2026-01-01',
+        endDate: '2026-01-02',
+      }),
+    /Quota/,
+  );
+});

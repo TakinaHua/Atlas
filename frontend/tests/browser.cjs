@@ -1,9 +1,96 @@
-const path=require('node:path');
-const fs=require('node:fs');
-const outputDir=path.resolve(__dirname,'../../artifacts/browser');
-fs.mkdirSync(outputDir,{recursive:true});
-const {chromium}=require(process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES ? process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES+'/playwright' : 'playwright');
-const assert=require('node:assert/strict');
-(async()=>{const browser=await chromium.launch({headless:true,args:['--no-sandbox']});const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route(/https:\/\/.*/,r=>r.abort());await page.goto(process.env.ATLAS_TEST_URL || 'http://127.0.0.1:8000');await page.screenshot({path:path.join(outputDir,'atlas-landing.png'),fullPage:true});await page.getByRole('link',{name:'Start Planning'}).click();await page.getByRole('button',{name:'Create New Trip',exact:true}).first().click();for(const [label,value] of [['Trip name','Hawaii'],['Destination','Big Island'],['Start date','2026-12-06'],['End date','2026-12-09']])await page.getByLabel(label,{exact:true}).fill(value);await page.getByRole('button',{name:'Save',exact:true}).click();await page.waitForSelector('.planner');assert.equal(await page.locator('[data-day]').count(),4);
-async function add(name,lat,lon){await page.getByRole('button',{name:'Add Place'}).click();await page.getByLabel('Place name').fill(name);if(lat!==undefined){await page.getByLabel('Latitude',{exact:true}).fill(lat);await page.getByLabel('Longitude',{exact:true}).fill(lon);}await page.getByRole('button',{name:'Save',exact:true}).click();}
-await add('Zero Point','0','0');await add('Lunch');assert.equal(await page.locator('.marker').count(),1);await page.getByRole('button',{name:'Edit Zero Point',exact:true}).click();await page.getByLabel('Place name').fill('Zero Point edited');await page.getByLabel('Notes').fill('Remember water');await page.getByRole('button',{name:'Save',exact:true}).click();await page.getByRole('button',{name:'Move Lunch up',exact:true}).click();assert.equal(await page.locator('.place-card h3').first().textContent(),'Lunch');await page.locator('[data-day]').nth(1).click();assert.equal(await page.locator('.place-card').count(),0);await add('Day Two');await page.reload();await page.waitForSelector('.place-card');assert.equal(await page.locator('.place-card').count(),2);assert.equal(await page.locator('.place-card h3').first().textContent(),'Lunch');assert.equal(await page.locator('.marker').count(),1);await page.getByRole('button',{name:'Select Zero Point edited on map',exact:true}).click();assert.equal(await page.locator('.marker.active').count(),1);await page.getByRole('button',{name:'Delete Lunch',exact:true}).click();await page.reload();await page.waitForSelector('.place-card');assert.equal(await page.locator('.place-card').count(),1);await page.screenshot({path:path.join(outputDir,'atlas-planner.png'),fullPage:true});await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.join(outputDir,'atlas-mobile.png'),fullPage:true});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.getByRole('link',{name:'All trips'}).click();await page.getByRole('link',{name:'Open Trip'}).click();await page.locator('[data-day]').nth(1).click();assert.equal(await page.locator('.place-card h3').textContent(),'Day Two');assert.deepEqual(errors,[]);console.log('PASS: full browser flow, inclusive days, edit/reorder/delete persistence, day isolation, zero-coordinate marker, selection, refresh, reopen, mobile overflow, network fallback, no JS errors');await browser.close();})().catch(e=>{console.error(e);process.exit(1);});
+const path = require('node:path');
+const fs = require('node:fs');
+const outputDir = path.resolve(__dirname, '../../artifacts/browser');
+fs.mkdirSync(outputDir, { recursive: true });
+const { chromium } = require(
+  process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES
+    ? process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES + '/playwright'
+    : 'playwright',
+);
+const assert = require('node:assert/strict');
+(async () => {
+  const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.route(/https:\/\/.*/, (r) => r.abort());
+  await page.goto(process.env.ATLAS_TEST_URL || 'http://127.0.0.1:8000');
+  await page.screenshot({
+    path: path.join(outputDir, 'atlas-landing.png'),
+    fullPage: true,
+  });
+  await page.getByRole('link', { name: 'Start Planning' }).click();
+  await page
+    .getByRole('button', { name: 'Create New Trip', exact: true })
+    .first()
+    .click();
+  for (const [label, value] of [
+    ['Trip name', 'Hawaii'],
+    ['Destination', 'Big Island'],
+    ['Start date', '2026-12-06'],
+    ['End date', '2026-12-09'],
+  ])
+    await page.getByLabel(label, { exact: true }).fill(value);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.waitForSelector('.planner');
+  assert.equal(await page.locator('[data-day]').count(), 4);
+  async function add(name, lat, lon) {
+    await page.getByRole('button', { name: 'Add Place' }).click();
+    await page.getByLabel('Place name').fill(name);
+    if (lat !== undefined) {
+      await page.getByLabel('Latitude', { exact: true }).fill(lat);
+      await page.getByLabel('Longitude', { exact: true }).fill(lon);
+    }
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+  }
+  await add('Zero Point', '0', '0');
+  await add('Lunch');
+  assert.equal(await page.locator('.marker').count(), 1);
+  await page.getByRole('button', { name: 'Edit Zero Point', exact: true }).click();
+  await page.getByLabel('Place name').fill('Zero Point edited');
+  await page.getByLabel('Notes').fill('Remember water');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByRole('button', { name: 'Move Lunch up', exact: true }).click();
+  assert.equal(await page.locator('.place-card h3').first().textContent(), 'Lunch');
+  await page.locator('[data-day]').nth(1).click();
+  assert.equal(await page.locator('.place-card').count(), 0);
+  await add('Day Two');
+  await page.reload();
+  await page.waitForSelector('.place-card');
+  assert.equal(await page.locator('.place-card').count(), 2);
+  assert.equal(await page.locator('.place-card h3').first().textContent(), 'Lunch');
+  assert.equal(await page.locator('.marker').count(), 1);
+  await page
+    .getByRole('button', { name: 'Select Zero Point edited on map', exact: true })
+    .click();
+  assert.equal(await page.locator('.marker.active').count(), 1);
+  await page.getByRole('button', { name: 'Delete Lunch', exact: true }).click();
+  await page.reload();
+  await page.waitForSelector('.place-card');
+  assert.equal(await page.locator('.place-card').count(), 1);
+  await page.screenshot({
+    path: path.join(outputDir, 'atlas-planner.png'),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({
+    path: path.join(outputDir, 'atlas-mobile.png'),
+    fullPage: true,
+  });
+  assert.equal(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    true,
+  );
+  await page.getByRole('link', { name: 'All trips' }).click();
+  await page.getByRole('link', { name: 'Open Trip' }).click();
+  await page.locator('[data-day]').nth(1).click();
+  assert.equal(await page.locator('.place-card h3').textContent(), 'Day Two');
+  assert.deepEqual(errors, []);
+  console.log(
+    'PASS: full browser flow, inclusive days, edit/reorder/delete persistence, day isolation, zero-coordinate marker, selection, refresh, reopen, mobile overflow, network fallback, no JS errors',
+  );
+  await browser.close();
+})().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

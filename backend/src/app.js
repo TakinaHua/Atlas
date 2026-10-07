@@ -1,5 +1,5 @@
 import express from 'express';
-import {fileURLToPath} from 'node:url';
+import { fileURLToPath } from 'node:url';
 import healthRouter from './routes/health.js';
 
 const publicDirectory = fileURLToPath(new URL('../../frontend/public/', import.meta.url));
@@ -10,7 +10,7 @@ export function createApp() {
   app.disable('x-powered-by');
   app.use('/api/health', healthRouter);
   app.use('/api', (_request, response) => {
-    response.status(404).json({error: 'API endpoint not found'});
+    response.status(404).json({ error: 'API endpoint not found' });
   });
   app.use('/src', express.static(sourceDirectory));
   app.use(express.static(publicDirectory));

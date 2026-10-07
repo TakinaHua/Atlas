@@ -1,3 +1,4 @@
-import {escapeHTML as e} from '../utilities/helpers.js';
-import {formatDate} from '../utilities/dates.js';
-export const TripCard = trip => `<article class="trip-card"><div class="trip-art"><span>↗</span><small>${e(trip.destination)}</small></div><div class="trip-content"><p class="eyebrow">${trip.days.length} DAYS · YOUR NEXT CHAPTER</p><h2>${e(trip.name)}</h2><p>${formatDate(trip.startDate)} – ${formatDate(trip.endDate)}, ${trip.startDate.slice(0,4)}</p><div class="card-actions"><a class="button" href="#/trip/${trip.id}">Open Trip ↗</a><button class="text-button danger" data-delete-trip="${trip.id}">Delete</button></div></div></article>`;
+import { escapeHTML as e } from '../utilities/helpers.js';
+import { formatDate } from '../utilities/dates.js';
+export const TripCard = (trip) =>
+  `<article class="trip-card"><div class="trip-art"><span>↗</span><small>${e(trip.destination)}</small></div><div class="trip-content"><p class="eyebrow">${trip.days.length} DAYS · YOUR NEXT CHAPTER</p><h2>${e(trip.name)}</h2><p>${formatDate(trip.startDate)} – ${formatDate(trip.endDate)}, ${trip.startDate.slice(0, 4)}</p><div class="card-actions"><a class="button" href="#/trip/${trip.id}">Open Trip ↗</a><button class="text-button danger" data-delete-trip="${trip.id}">Delete</button></div></div></article>`;
