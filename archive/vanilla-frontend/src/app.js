@@ -44,7 +44,9 @@ function render() {
           (button.onclick = () =>
             openDialog(
               'Delete this trip?',
-              `<p>This removes the trip and all its places from this browser.</p>`,
+              /* HTML */ `
+                <p>This removes the trip and all its places from this browser.</p>
+              `,
               () => {
                 storage.deleteTrip(button.dataset.deleteTrip);
                 render();

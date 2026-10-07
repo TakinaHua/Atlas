@@ -1,2 +1,51 @@
-export const LandingPage = () =>
-  `<main class="landing"><div class="hero-copy"><p class="eyebrow">A LITTLE STRUCTURE. A LOT OF POSSIBILITY.</p><h1>Make room<br>for <em>the journey.</em></h1><p class="hero-description">Your places, your pace, your next adventure.<br>Turn a trip idea into a day-by-day plan with Atlas.</p><a href="#/dashboard" class="button large">Start Planning <span>↗</span></a><p class="local-note">No account needed. Your plans stay in this browser.</p></div><div class="hero-art" aria-label="Illustrated mountain landscape"><div class="sun"></div><div class="mountain back"></div><div class="mountain front"></div><div class="landscape-label"><span>THE WORLD IS WAITING</span><strong>Go somewhere<br>that stays with you.</strong></div><div class="floating-note">↗ &nbsp; One day at a time.</div></div><div class="features"><div><b>01 / Gather your places</b><p>Keep every stop and note together.</p></div><div><b>02 / Find your rhythm</b><p>Arrange each day your way.</p></div><div><b>03 / See the bigger picture</b><p>Put your itinerary on the map.</p></div></div></main>`;
+export const LandingPage = () => /* HTML */ `
+  <main class="landing">
+    <div class="hero-copy">
+      <p class="eyebrow">A LITTLE STRUCTURE. A LOT OF POSSIBILITY.</p>
+      <h1>
+        Make room
+        <br />
+        for
+        <em>the journey.</em>
+      </h1>
+      <p class="hero-description">
+        Your places, your pace, your next adventure.
+        <br />
+        Turn a trip idea into a day-by-day plan with Atlas.
+      </p>
+      <a href="#/dashboard" class="button large">
+        Start Planning
+        <span>↗</span>
+      </a>
+      <p class="local-note">No account needed. Your plans stay in this browser.</p>
+    </div>
+    <div class="hero-art" aria-label="Illustrated mountain landscape">
+      <div class="sun"></div>
+      <div class="mountain back"></div>
+      <div class="mountain front"></div>
+      <div class="landscape-label">
+        <span>THE WORLD IS WAITING</span>
+        <strong>
+          Go somewhere
+          <br />
+          that stays with you.
+        </strong>
+      </div>
+      <div class="floating-note">↗ &nbsp; One day at a time.</div>
+    </div>
+    <div class="features">
+      <div>
+        <b>01 / Gather your places</b>
+        <p>Keep every stop and note together.</p>
+      </div>
+      <div>
+        <b>02 / Find your rhythm</b>
+        <p>Arrange each day your way.</p>
+      </div>
+      <div>
+        <b>03 / See the bigger picture</b>
+        <p>Put your itinerary on the map.</p>
+      </div>
+    </div>
+  </main>
+`;

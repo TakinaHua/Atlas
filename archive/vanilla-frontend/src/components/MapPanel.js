@@ -55,16 +55,51 @@ export class MapPanel {
     for (let x = Math.floor(left / 256); x <= Math.floor((left + w) / 256); x++)
       for (let y = Math.floor(top / 256); y <= Math.floor((top + h) / 256); y++) {
         if (y < 0 || y >= n) continue;
-        tiles += `<img alt="" draggable="false" class="map-tile" style="left:${x * 256 - left}px;top:${y * 256 - top}px" src="https://tile.openstreetmap.org/${this.zoom}/${((x % n) + n) % n}/${y}.png">`;
+        tiles += /* HTML */ `
+          <img
+            alt=""
+            draggable="false"
+            class="map-tile"
+            style="left:${x * 256 - left}px;top:${y * 256 - top}px"
+            src="https://tile.openstreetmap.org/${this.zoom}/${((x % n) + n) % n}/${y}.png"
+          />
+        `;
       }
-    this.element.innerHTML = `<div class="tile-layer">${tiles}</div><div class="map-controls"><button data-map="in" aria-label="Zoom in">+</button><button data-map="out" aria-label="Zoom out">−</button><button data-map="fit" aria-label="Fit places">⌖</button></div>${this.places
-      .map((p, i) => {
-        const [x, y] = this.project(p.longitude, p.latitude, this.zoom);
-        return `<button class="marker ${this.selected === p.id ? 'active' : ''}" style="left:${x - left}px;top:${y - top}px" data-marker="${p.id}" aria-label="Select ${e(p.name)}" title="${e(p.name)}">${this.placeNumbers.get(p.id)}</button>`;
-      })
-      .join(
-        '',
-      )}${!this.places.length ? '<div class="map-empty">Your places will appear here<br><small>Add latitude and longitude to a place.</small></div>' : ''}<span class="tile-status"></span><a class="attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>`;
+    this.element.innerHTML = /* HTML */ `
+      <div class="tile-layer">${tiles}</div>
+      <div class="map-controls">
+        <button data-map="in" aria-label="Zoom in">+</button>
+        <button data-map="out" aria-label="Zoom out">−</button>
+        <button data-map="fit" aria-label="Fit places">⌖</button>
+      </div>
+      ${this.places
+        .map((p, i) => {
+          const [x, y] = this.project(p.longitude, p.latitude, this.zoom);
+          return /* HTML */ `
+            <button
+              class="marker ${this.selected === p.id ? 'active' : ''}"
+              style="left:${x - left}px;top:${y - top}px"
+              data-marker="${p.id}"
+              aria-label="Select ${e(p.name)}"
+              title="${e(p.name)}"
+            >
+              ${this.placeNumbers.get(p.id)}
+            </button>
+          `;
+        })
+        .join(
+          '',
+        )}${!this.places.length ? '<div class="map-empty">Your places will appear here<br><small>Add latitude and longitude to a place.</small></div>' : ''}
+      <span class="tile-status"></span>
+      <a
+        class="attribution"
+        href="https://www.openstreetmap.org/copyright"
+        target="_blank"
+        rel="noopener"
+      >
+        © OpenStreetMap contributors
+      </a>
+    `;
     this.element.querySelectorAll('img').forEach(
       (img) =>
         (img.onerror = () => {

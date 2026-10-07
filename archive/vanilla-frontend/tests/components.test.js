@@ -25,7 +25,7 @@ test('map shows valid zero coordinates, keeps itinerary numbering and selected m
     'b',
     () => {},
   );
-  assert.match(element.innerHTML, /data-marker="b"[^>]*>2<\/button>/);
+  assert.match(element.innerHTML, /data-marker="b"[^>]*>\s*2\s*<\/button>/);
   assert.match(element.innerHTML, /marker active/);
   assert.doesNotMatch(element.innerHTML, /data-marker="a"/);
   assert.doesNotMatch(element.innerHTML, /NaN/);
