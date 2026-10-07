@@ -1,20 +1,9 @@
-# Planned Django backend
+# Backend implementation status
 
-Decision recorded October 6, 2026: Atlas will use Django (Python) for its backend. The frontend will remain a separate vanilla JavaScript application.
+The October 6 Django plan is implemented in the October 7 version. Django now owns itinerary persistence, validation, session ownership, REST endpoints, and route calculation. SQLite is the local database. The temporary Express server is preserved under `archive/express-backend`.
 
-## Current state
+The latest request specifically calls for TypeScript/Next.js to match the resume, superseding the earlier plan to keep the vanilla frontend. The formatted earlier frontend remains in `archive/vanilla-frontend` and Git history.
 
-- `backend/` contains a temporary Express server that serves the frontend and `/api/health`.
-- Trip operations and persistence live in `frontend/src/storage/tripStorage.js`, using browser localStorage.
-- There is no Django project, Python environment, server database, authentication, or trip API yet.
-- The existing npm setup and commands continue to run the current application.
+Implemented: migrations, trip/day/place models, transactional create/update/delete/import, explicit localStorage import, asynchronous loading/error states, CSRF protection, optimistic edit conflicts, Dijkstra route calculation, provider integration, and test coverage.
 
-## Intended migration sequence
-
-1. Set up a Django project in `backend/`, with documented Python dependencies, environment configuration, and development commands.
-2. Replace the Express health endpoint and configure frontend/static asset serving while preserving the existing browser routes.
-3. Design trip, day, and place models and API endpoints. Decide on the database, authentication requirements, and whether to use Django REST Framework during that implementation.
-4. Adapt the frontend storage boundary to asynchronous API requests, with loading and error handling. Provide an explicit migration/import path for existing localStorage trips before changing persistence.
-5. Add Django endpoint and persistence tests, run the frontend regression checks, and update root commands and deployment documentation. Remove the Express scaffold and its dependencies once Django replaces it.
-
-Keep new backend work aligned with this Django direction. Database choice, hosting, authentication design, Python/Django versions, and API tooling remain undecided; this planning update does not introduce those dependencies or change runtime behavior.
+Still outside this local project's scope: account login, hosted deployment, automatic geocoding, and automatic optimal stop ordering. Read the root README for setup and `architecture.md` for API details.

@@ -1,69 +1,84 @@
-# Atlas
+# Atlas · Trip planner
 
-A trip-planning website with a vanilla JavaScript frontend and a planned Django backend. The current runnable scaffold uses Express; the Django migration has not been implemented yet.
+Atlas is a TypeScript/Next.js trip planner with a Django REST backend, SQLite persistence, a heap-based Dijkstra implementation, and a Leaflet map. It supports multi-day itineraries, destination editing and ordering, and driving routes from OSRM.
 
-## Backend direction
+## Start locally
 
-Django (Python) is the selected framework for future backend development. The frontend and backend will remain separate under `frontend/` and `backend/`. The existing Express server currently serves the frontend and health endpoint; it is a temporary scaffold. See the [Django migration plan](docs/backend-plan.md) for the intended next steps.
-
-## Quick start
-
-Use Node.js 24 LTS (the version in `.nvmrc`) and npm. Run these commands from this directory:
+Requirements: Node 24+, Python 3.12+, and internet access for map tiles and routing.
 
 ```sh
+python3 -m venv .venv
+.venv/bin/pip install -r backend/requirements-dev.txt
 npm ci
+.venv/bin/python backend/manage.py migrate
 npm run dev
 ```
 
-Open http://localhost:8000. For a normal run without automatic server restarts, use `npm start`. Frontend changes appear after refreshing the browser. No build step is required.
+Open http://127.0.0.1:3000. Django runs at http://127.0.0.1:8000. Keep the same browser address when returning to your trips. Stop both servers with Ctrl+C.
 
-Optional configuration: copy `.env.example` to `.env`, then change `HOST` or `PORT`. The default listener is local to this computer. The backend workspace automatically loads the root `.env`; do not place secrets in frontend files.
+This is a personal, local application. Trips belong to an opaque browser session and are stored in `backend/db.sqlite3`. There is no account login or cross-device synchronization. The cookie lasts one year; deleting it loses access to that session's trips. Export JSON backups from the dashboard before clearing cookies. Back up the SQLite file as well for database recovery.
 
-## Project structure
+## Use the planner
 
-```text
-Atlas/
-├── frontend/
-│   ├── public/             # HTML entry point and future public assets
-│   ├── src/
-│   │   ├── app.js          # Browser startup, navigation, and event handlers
-│   │   ├── components/     # Reusable UI components
-│   │   ├── pages/          # Landing, dashboard, and trip planner screens
-│   │   ├── storage/        # Browser persistence and trip operations
-│   │   ├── styles/         # Website CSS
-│   │   └── utilities/      # Browser-side date and formatting helpers
-│   └── tests/              # Frontend unit and browser regression tests
-├── backend/
-│   ├── src/
-│   │   ├── app.js          # Express application and static serving
-│   │   ├── server.js       # Configuration, listener, and shutdown
-│   │   └── routes/        # HTTP API routes
-│   └── tests/              # HTTP integration tests
-├── docs/                   # Architecture and validation notes
-├── scripts/                # Project maintenance commands
-├── archive/                # Preserved prototype, ZIP, and original metadata
-├── .env.example            # Optional server configuration template
-└── package.json            # Root commands and npm workspaces
+1. Create a trip with a name, destination, and start/end dates (up to 60 days).
+2. Choose a day and add places. Enter both latitude and longitude to show a marker and calculate driving routes. Addresses are saved as text; automatic geocoding is not implemented.
+3. Edit notes and places, reorder stops with the arrows, or remove them. Saved changes persist across reloads. Trip date edits cannot silently remove days containing places in the UI.
+4. Select **Calculate driving route** after adding at least two stops with coordinates. The map displays the road geometry, distance, and estimated driving time. Editing or reordering stops clears the previous route.
+5. Drag/zoom the map, click a marker, or select a stop in the itinerary.
+
+Public OSRM and OpenStreetMap services require internet and have no availability guarantee. Routes share destination coordinates with OSRM; tiles contact OpenStreetMap. Set `OSRM_BASE_URL` to your own compatible driving service for sustained use. Provider failures show a useful message; the app never substitutes a straight line and calls it a driving route.
+
+## Bring back older trips
+
+The dashboard offers **Import old browser trips** when `atlas.trips.v1` exists on the current origin. Imports are explicit, atomic, and deduplicated by original trip ID within this browser session. Existing localStorage is never erased.
+
+Browser storage is origin-specific. If the old app ran on port 8000, its data is not available to port 3000. While visiting the old app's original address, export the value with the browser console:
+
+```js
+copy(localStorage.getItem('atlas.trips.v1'));
 ```
 
-The root lockfile currently manages both JavaScript workspaces. Install dependencies from the root. The future Django backend will use Python dependency management, documented when the migration is implemented. Browser code currently uses native ES modules without a bundler.
+Save the copied JSON as a file, then select **Import JSON backup** in the new dashboard. `copy()` is a Chrome DevTools utility. Exported JSON contains your trip data; keep it private as appropriate. Imports support up to 100 trips and a 900 KB browser upload. A repeated import skips the original trip; it does not overwrite edits made after import.
 
-## Commands
+## Code guide
 
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Run the website and API with server watch mode |
-| `npm start` | Run the website and API |
-| `npm test` | Run frontend unit tests and backend HTTP tests |
-| `npm run check` | Syntax-check all active JavaScript files |
-| `npm run test:browser` | Run the optional Playwright browser regression |
+- `frontend/app/page.tsx`: planner state and user actions, with save-before-update behavior.
+- `frontend/components/`: dialogs, forms, and the interactive Leaflet map.
+- `frontend/lib/`: typed API records, HTTP/CSRF helpers, and date arithmetic.
+- `backend/trips/models.py`: Trip → Day → Place relationships and database constraints.
+- `backend/trips/itineraries.py`: validation, serialization, and atomic itinerary replacement.
+- `backend/trips/views.py`: session-scoped REST endpoints and conflict detection.
+- `backend/trips/routing.py`: mapping-provider boundary and documented Dijkstra algorithm.
+- `backend/trips/tests.py`: backend and algorithm tests.
+- `tests/planner.spec.ts`: end-to-end browser tests.
+- `archive/`: formatted earlier code, original supplied ZIP, and former Express scaffold.
 
-For browser tests, start the server in a separate terminal, install Playwright with `npm install --save-dev playwright --workspace=@atlas/frontend`, and install its browser with `npx playwright install chromium`. Then run `npm run test:browser`. Screenshots go to `artifacts/browser/`, which is ignored by Git. `ATLAS_TEST_URL` can override the test URL; the default is http://127.0.0.1:8000. The script also supports an externally supplied `CODEX_PRIMARY_RUNTIME_NODE_MODULES` runtime.
+JavaScript/TypeScript/CSS use two spaces; Python uses four. Run `npm run format` to maintain consistent spacing. Comments explain responsibilities, assumptions, and non-obvious decisions rather than repeating each statement.
 
-## Current functionality
+## Verify
 
-The frontend supports trip creation, daily itineraries, editing and reordering places, and a coordinate-based map. Trips are stored in the browser's localStorage. The backend serves the website and exposes `GET /api/health`; trip APIs, authentication, and a database are not implemented.
+```sh
+npm test
+npm run check
+npm run build
+# In another terminal, with npm run dev already running:
+npm run test:browser
+```
 
-Existing trips remain tied to the exact browser origin. Continue using the same hostname and port you used previously to access those trips (for example, `localhost:8000` and `127.0.0.1:8000` have separate storage). No storage key or trip format changed during organization.
+Browser tests use installed Google Chrome by default. They create session-isolated test trips. Route rendering uses a deterministic fixture; Django routing tests mock provider data. A separate live-provider smoke check is recorded in `docs/validation-2026-10-07.md`.
 
-See [architecture](docs/architecture.md), [frontend behavior and limitations](frontend/README.md), and [current validation](docs/validation-2026-10-06.md). Older files in `archive/` are reference material and are not served by the application.
+## Routing and the resume
+
+The application implements Dijkstra itself using a priority queue. OSRM's table service supplies directed, nonnegative driving-time costs between saved destinations. Dijkstra finds the minimum travel-time path in that destination graph for each consecutive required stop; those paths are joined and OSRM returns road geometry. Missing connections are unreachable, not zero-cost edges. Dijkstra does not search a locally stored road network or optimize the order of all stops. See `docs/architecture.md` for the distinction and complexity.
+
+The code supports the resume claims about data models and REST APIs, Dijkstra, TypeScript/Next.js itinerary editing, and interactive route maps. Do not claim deployment, account authentication, automatic geocoding, global stop-order optimization, or measured performance improvements without implementing or measuring them.
+
+## Production boundary
+
+`npm run build` builds Next.js; `npm start` serves that build. Django must run separately. For deployment, use a production WSGI server for `config.wsgi`, set a strong `DJANGO_SECRET_KEY`, set `DJANGO_DEBUG=0`, configure allowed hosts and trusted HTTPS origins, and provide HTTPS, database backups, rate limits, and account authentication if needed. The development server is not a production deployment.
+
+Environment variables are listed in `.env.example`. Django reads the process environment; it does not load `.env` automatically. Next reads its own `frontend/.env.local`. Export variables in your shell when running both with `npm run dev`.
+
+## Version history
+
+The earlier main history and original ZIP are retained. The formatting-only checkpoint precedes the backend and frontend implementation, allowing separate review. See `docs/versions.md` for checkpoints and safe ways to inspect older versions.
