@@ -169,6 +169,18 @@ export default function Home() {
     );
   }
 
+  function deleteTrip(target: Trip) {
+    if (!window.confirm(`Delete “${target.name}” and all its destinations?`)) return;
+    void run(async () => {
+      await api(`/trips/${target.id}`, 'DELETE', { revision: target.revision });
+      setTrips((current) => current.filter((item) => item.id !== target.id));
+      if (tripId === target.id) {
+        clearRoute();
+        setTripId(null);
+      }
+    });
+  }
+
   function exportTrips() {
     const url = URL.createObjectURL(
       new Blob([JSON.stringify(trips, null, 2)], { type: 'application/json' }),
@@ -184,7 +196,7 @@ export default function Home() {
     <>
       <header className="topbar">
         <a className="brand" href="/">
-          atlas<span>✳</span>
+          Atlas<span>✳</span>
         </a>
         <span>A LITTLE LESS RUSH. A LOT MORE WORLD.</span>
         <button
@@ -198,9 +210,6 @@ export default function Home() {
         </button>
       </header>
       <main>
-        <p className="preview-banner">
-          FRONTEND PREVIEW · Saved on this browser · Your itinerary, one day at a time
-        </p>
         {error && (
           <div className="error" role="alert">
             {error}{' '}
@@ -323,9 +332,19 @@ export default function Home() {
                     <p>
                       {item.startDate} — {item.endDate}
                     </p>
-                    <button className="secondary" onClick={() => openTrip(item)}>
-                      Open itinerary →
-                    </button>
+                    <div className="actions">
+                      <button className="secondary" onClick={() => openTrip(item)}>
+                        Open itinerary →
+                      </button>
+                      <button
+                        className="danger"
+                        disabled={busy}
+                        onClick={() => deleteTrip(item)}
+                        aria-label={`Delete ${item.name}`}
+                      >
+                        Delete trip
+                      </button>
+                    </div>
                   </div>
                 </article>
               ))}
@@ -417,19 +436,7 @@ export default function Home() {
                 <button
                   className="danger"
                   disabled={busy}
-                  onClick={() => {
-                    if (window.confirm('Delete this trip and all its destinations?'))
-                      void run(async () => {
-                        await api(`/trips/${trip.id}`, 'DELETE', {
-                          revision: trip.revision,
-                        });
-                        setTrips((current) =>
-                          current.filter((item) => item.id !== trip.id),
-                        );
-                        clearRoute();
-                        setTripId(null);
-                      });
-                  }}
+                  onClick={() => deleteTrip(trip)}
                 >
                   Delete trip
                 </button>
@@ -578,7 +585,7 @@ export default function Home() {
         )}
       </main>
       <footer>
-        atlas ✳ <span>Leave a little room for the unexpected.</span>
+        Atlas ✳ <span>Leave a little room for the unexpected.</span>
       </footer>
       {editor && (
         <EditorDialog

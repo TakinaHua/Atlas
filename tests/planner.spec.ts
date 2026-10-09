@@ -123,3 +123,25 @@ test('sample trip is usable and failed storage saves retain form input', async (
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'A little aloha' })).toBeVisible();
 });
+
+test('dashboard delete can be canceled and persists without removing other trips', async ({
+  page,
+}) => {
+  await createTrip(page);
+  await page.getByRole('button', { name: 'My trips' }).click();
+  await page.getByRole('button', { name: 'Explore a sample trip' }).click();
+  await page.getByRole('button', { name: 'My trips' }).click();
+  const remove = page.getByRole('button', {
+    name: 'Delete Pittsburgh weekend',
+    exact: true,
+  });
+  page.once('dialog', (dialog) => dialog.dismiss());
+  await remove.click();
+  await expect(page.locator('.trip-card')).toHaveCount(2);
+  page.once('dialog', (dialog) => dialog.accept());
+  await remove.click();
+  await expect(page.locator('.trip-card')).toHaveCount(1);
+  await page.reload();
+  await expect(page.locator('.trip-card')).toHaveCount(1);
+  await expect(page.getByRole('heading', { name: 'A little aloha' })).toBeVisible();
+});
