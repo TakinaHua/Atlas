@@ -481,3 +481,29 @@ footer span {
     text-align: right;
   }
 }
+
+.preview-banner {
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 12px 16px;
+  background: #e9eddf;
+  border-radius: 8px;
+  color: var(--green);
+}
+.sample-button {
+  margin: 12px 0 0 12px;
+}
+.map-panel {
+  position: sticky;
+  top: 20px;
+}
+@media (max-width: 850px) {
+  .map-panel {
+    position: static;
+  }
+}
+@media (max-width: 560px) {
+  .sample-button {
+    margin-left: 0;
+  }
+}

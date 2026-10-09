@@ -21,7 +21,7 @@ async function addPlace(page: Page, name: string, latitude: string, longitude: s
   await expect(page.locator('dialog')).toHaveCount(0);
 }
 
-test('create, edit, reorder, day navigation, persistence, mobile, and delete', async ({
+test('create, edit, reorder, route, persistence, mobile, and delete', async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -40,6 +40,32 @@ test('create, edit, reorder, day navigation, persistence, mobile, and delete', a
   await page.getByLabel('Notes').fill('Book tickets before arrival.');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Book tickets before arrival.')).toBeVisible();
+  // The API integration is covered by Django tests; this fixture verifies rendering
+  // without making browser tests depend on the public OSRM demo's availability.
+  await page.route('**/api/trips/*/days/*/route', (route) =>
+    route.fulfill({
+      json: {
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [-79.95, 40.4433],
+            [-79.98, 40.445],
+            [-80.0128, 40.4417],
+          ],
+        },
+        distanceMeters: 6200,
+        durationSeconds: 720,
+        graphDurationSeconds: 720,
+        pathIndices: [0, 1],
+        algorithm: 'Dijkstra',
+        profile: 'driving',
+        provider: 'OSRM',
+      },
+    }),
+  );
+  await page.getByRole('button', { name: 'Calculate driving route' }).click();
+  await expect(page.getByText('6.2 km · 12 min driving')).toBeVisible();
+  await expect(page.locator('.leaflet-overlay-pane path')).toHaveCount(1);
   await page.screenshot({
     path: 'artifacts/browser/planner-desktop.png',
     fullPage: true,
@@ -67,16 +93,32 @@ test('create, edit, reorder, day navigation, persistence, mobile, and delete', a
   expect(errors).toEqual([]);
 });
 
-test('invalid import leaves existing trips untouched', async ({ page }) => {
+test('failed save keeps form input; route errors stay visible', async ({ page }) => {
   await createTrip(page);
-  await page.getByRole('button', { name: 'My trips' }).click();
-  await page.getByLabel('Import JSON backup').setInputFiles({
-    name: 'bad.json',
-    mimeType: 'application/json',
-    buffer: Buffer.from('[{"id":"broken"}]'),
+  await addPlace(page, 'Park', '40.44', '-80.01');
+  await addPlace(page, 'Museum', '40.45', '-79.95');
+  await page.route('**/api/trips/*/days/*/route', (route) =>
+    route.fulfill({ status: 502, json: { error: 'Mapping service unavailable.' } }),
+  );
+  await page.getByRole('button', { name: 'Calculate driving route' }).click();
+  await expect(page.locator('main').getByRole('alert')).toContainText(
+    'Mapping service unavailable.',
+  );
+  await page.getByRole('button', { name: 'Edit trip', exact: true }).click();
+  await page.getByLabel('Trip name', { exact: true }).fill('Keep my unsaved title');
+  await page.route('**/api/trips/*', async (route) => {
+    if (route.request().method() === 'PUT')
+      await route.fulfill({
+        status: 409,
+        json: { error: 'Trip changed in another tab.' },
+      });
+    else await route.continue();
   });
-  await expect(page.locator('main').getByRole('alert')).toContainText('Every trip needs');
-  await expect(page.getByRole('heading', { name: 'Pittsburgh weekend' })).toBeVisible();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.locator('dialog').getByRole('alert')).toContainText('another tab');
+  await expect(page.getByLabel('Trip name', { exact: true })).toHaveValue(
+    'Keep my unsaved title',
+  );
 });
 
 test('legacy import preserves local data and avoids duplicates', async ({ page }) => {
@@ -101,25 +143,4 @@ test('legacy import preserves local data and avoids duplicates', async ({ page }
   await expect(page.getByRole('status')).toContainText('1 already imported');
   expect(await page.evaluate(() => localStorage.getItem('atlas.trips.v1'))).toBe(legacy);
   await page.screenshot({ path: 'artifacts/browser/dashboard.png', fullPage: true });
-});
-
-test('sample trip is usable and failed storage saves retain form input', async ({
-  page,
-}) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Explore a sample trip' }).click();
-  await expect(page.getByRole('heading', { name: 'A little aloha' })).toBeVisible();
-  await expect(page.locator('.map-pin')).toHaveCount(2);
-  await page.getByRole('button', { name: 'Edit trip', exact: true }).click();
-  await page.getByLabel('Trip name', { exact: true }).fill('Unsaved name');
-  await page.evaluate(() => {
-    Storage.prototype.setItem = () => {
-      throw new DOMException('Quota', 'QuotaExceededError');
-    };
-  });
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.locator('dialog').getByRole('alert')).toContainText('not saved');
-  await expect(page.getByLabel('Trip name', { exact: true })).toHaveValue('Unsaved name');
-  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'A little aloha' })).toBeVisible();
 });

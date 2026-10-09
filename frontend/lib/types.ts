@@ -1,4 +1,4 @@
-/** API types mirror Django's JSON representation, including date-only strings. */
+/** Preview itinerary records use date-only strings; compatible with exported trip backups. */
 export interface Place {
   id: string;
   name: string;

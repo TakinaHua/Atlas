@@ -1,13 +1,12 @@
 import type { NextConfig } from 'next';
 
-// The browser uses one origin. Next forwards API requests (and session cookies)
-// to Django, avoiding cross-origin storage and authentication surprises.
+// A single browser origin proxies the minimal Express preview API.
 const config: NextConfig = {
   async rewrites() {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.DJANGO_API_URL || 'http://127.0.0.1:8000'}/api/:path*`,
+        destination: `${process.env.ATLAS_API_URL || 'http://127.0.0.1:8000'}/api/:path*`,
       },
     ];
   },

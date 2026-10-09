@@ -5,7 +5,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import EditorDialog from '../components/EditorDialog';
 import TripForm from '../components/TripForm';
 import PlaceForm from '../components/PlaceForm';
-import { api, initializeSession, itineraryDates } from '../lib/api';
+import { itineraryDates } from '../lib/api';
+import { previewStore as api } from '../lib/preview-store';
 import type { CalculatedRoute, Place, Trip } from '../lib/types';
 
 // Leaflet needs the browser DOM and must not run during server rendering.
@@ -44,7 +45,6 @@ export default function Home() {
   useEffect(() => {
     async function load() {
       try {
-        await initializeSession();
         await refresh();
         setHasLocalTrips(Boolean(localStorage.getItem(LOCAL_TRIPS_KEY)));
       } catch (error) {
@@ -68,7 +68,7 @@ export default function Home() {
     setSelectedId(null);
   }
 
-  /** Updates appear only after Django confirms persistence. */
+  /** Updates appear only after browser storage confirms the save. */
   async function saveTrip(next: Trip) {
     const saved = await api<Trip>(`/trips/${next.id}`, 'PUT', next);
     setTrips((current) => current.map((item) => (item.id === saved.id ? saved : item)));
@@ -156,17 +156,6 @@ export default function Home() {
     });
   }
 
-  async function calculate() {
-    if (!trip || !day) return;
-    clearRoute();
-    const generation = routeGeneration.current;
-    const result = await api<CalculatedRoute>(
-      `/trips/${trip.id}/days/${day.date}/route`,
-      'POST',
-    );
-    if (generation === routeGeneration.current) setRoute(result);
-  }
-
   async function importTrips(raw: string) {
     const parsed = JSON.parse(raw);
     const result = await api<{ imported: number; skipped: number }>(
@@ -209,6 +198,9 @@ export default function Home() {
         </button>
       </header>
       <main>
+        <p className="preview-banner">
+          FRONTEND PREVIEW · Saved on this browser · Your itinerary, one day at a time
+        </p>
         {error && (
           <div className="error" role="alert">
             {error}{' '}
@@ -216,7 +208,6 @@ export default function Home() {
               className="secondary"
               onClick={() =>
                 void run(async () => {
-                  await initializeSession();
                   await refresh();
                   setTripId(null);
                 })
@@ -250,6 +241,53 @@ export default function Home() {
                 </p>
                 <button disabled={busy} onClick={() => setEditor({ kind: 'trip' })}>
                   ＋ Plan a trip
+                </button>
+                <button
+                  className="secondary sample-button"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      const sample = await api<Trip>('/trips', 'POST', {
+                        name: 'A little aloha',
+                        destination: 'Oʻahu, Hawaii',
+                        startDate: '2026-11-14',
+                        endDate: '2026-11-16',
+                        days: itineraryDates('2026-11-14', '2026-11-16').map(
+                          (date, index) => ({
+                            date,
+                            places:
+                              index === 0
+                                ? [
+                                    {
+                                      id: crypto.randomUUID(),
+                                      name: 'Waikīkī Beach',
+                                      address: 'Honolulu, Oʻahu',
+                                      category: 'Nature',
+                                      notes: 'A slow start by the ocean.',
+                                      latitude: 21.2767,
+                                      longitude: -157.8275,
+                                    },
+                                    {
+                                      id: crypto.randomUUID(),
+                                      name: 'Diamond Head',
+                                      address: 'Honolulu, Oʻahu',
+                                      category: 'Nature',
+                                      notes:
+                                        'Sample stop — check access and reservations before traveling.',
+                                      latitude: 21.262,
+                                      longitude: -157.805,
+                                    },
+                                  ]
+                                : [],
+                          }),
+                        ),
+                      });
+                      setTrips((current) => [sample, ...current]);
+                      openTrip(sample);
+                    })
+                  }
+                >
+                  Explore a sample trip →
                 </button>
               </div>
               <div className="hero-art" aria-hidden="true">
@@ -300,8 +338,8 @@ export default function Home() {
             <section className="data-tools">
               <h3>Your trips, kept close</h3>
               <p>
-                Trips are saved in the database for this browser session. Export a backup
-                before clearing cookies or moving devices.
+                Trips are saved in this browser on this address. Export a backup before
+                clearing browser data or moving devices.
               </p>
               <div className="actions">
                 <button
@@ -444,7 +482,9 @@ export default function Home() {
                       {place.address && <p>{place.address}</p>}
                       {place.notes && <p className="notes">{place.notes}</p>}
                       {place.latitude === null && (
-                        <p className="muted">Coordinates needed for routing</p>
+                        <p className="muted">
+                          Add coordinates to show this place on the map
+                        </p>
                       )}
                       <div className="actions">
                         <button
@@ -508,23 +548,10 @@ export default function Home() {
                   ))}
                 </ol>
                 <div className="route-box">
-                  <button
-                    disabled={busy || (day?.places.length || 0) < 2}
-                    onClick={() => void run(calculate)}
-                  >
-                    {busy ? 'Working…' : 'Calculate driving route'}
-                  </button>
                   <p className="muted">
-                    Follows your stop order. Add coordinates to every stop.
+                    Arrange stops in the order you want to visit. Driving routes and smart
+                    suggestions will follow after the frontend review.
                   </p>
-                  {route && (
-                    <p role="status" className="route-summary">
-                      {(route.distanceMeters / 1000).toFixed(1)} km ·{' '}
-                      {Math.ceil(route.durationSeconds / 60)} min driving
-                      <br />
-                      <small>Estimated travel time · excludes time at stops</small>
-                    </p>
-                  )}
                 </div>
               </section>
               <section className="map-panel">
@@ -542,8 +569,8 @@ export default function Home() {
                   onSelect={selectPlace}
                 />
                 <p className="muted">
-                  Drag to explore, scroll to zoom, or select a numbered destination.
-                  Routing shares coordinates with OSRM; map tiles use OpenStreetMap.
+                  Drag to explore, scroll to zoom, or select a numbered destination. Map
+                  tiles use OpenStreetMap. Add coordinates to place your stops on the map.
                 </p>
               </section>
             </div>

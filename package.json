@@ -1,6 +1,6 @@
 {
   "name": "atlas",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -11,14 +11,14 @@
   },
   "scripts": {
     "dev": "concurrently -k -n api,web \"npm:dev:api\" \"npm:dev:web\"",
-    "dev:api": ".venv/bin/python backend/manage.py runserver 127.0.0.1:8000",
+    "dev:api": "node --env-file-if-exists=.env --watch backend/server.js",
     "dev:web": "npm run dev --workspace=@atlas/frontend",
     "build": "npm run build --workspace=@atlas/frontend",
-    "start": "npm run start --workspace=@atlas/frontend",
-    "test": ".venv/bin/python backend/manage.py test trips && node --test archive/vanilla-frontend/tests/*.test.js",
+    "start": "concurrently -k -n api,web \"node --env-file-if-exists=.env backend/server.js\" \"npm run start --workspace=@atlas/frontend\"",
+    "test": "node --test tests/server.test.js && node --test archive/vanilla-frontend/tests/*.test.js",
     "test:browser": "playwright test",
-    "check": "npm run typecheck --workspace=@atlas/frontend && .venv/bin/python backend/manage.py check && prettier --check . && .venv/bin/black --check backend",
-    "format": "prettier --write . && .venv/bin/black backend"
+    "check": "npm run typecheck --workspace=@atlas/frontend && prettier --check frontend backend/server.js tests docs/architecture.md docs/backend-plan.md README.md package.json playwright.config.ts",
+    "format": "prettier --write frontend backend/server.js tests docs/architecture.md docs/backend-plan.md README.md package.json playwright.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.0",
@@ -27,5 +27,8 @@
   },
   "overrides": {
     "shell-quote": "^1.11.0"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
   }
 }
