@@ -499,3 +499,9 @@ footer span {
     margin-left: 0;
   }
 }
+
+.trip-card .actions button {
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 5px;
+}

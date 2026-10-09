@@ -16,9 +16,18 @@ const TripMap = dynamic(() => import('../components/TripMap'), {
 });
 type Editor = { kind: 'trip'; trip?: Trip } | { kind: 'place'; place?: Place };
 const LOCAL_TRIPS_KEY = 'atlas.trips.v1';
+function displayDate(date: string, includeYear = false) {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    ...(includeYear ? { year: 'numeric' as const } : {}),
+    timeZone: 'UTC',
+  }).format(new Date(`${date}T00:00:00Z`));
+}
 
 export default function Home() {
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [sampleTrip, setSampleTrip] = useState<Trip | null>(null);
   const [tripId, setTripId] = useState<string | null>(null);
   const [date, setDate] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -31,7 +40,8 @@ export default function Home() {
   const [hasLocalTrips, setHasLocalTrips] = useState(false);
   // Invalidating the generation prevents a late route response from painting another day.
   const routeGeneration = useRef(0);
-  const trip = trips.find((item) => item.id === tripId);
+  const isSample = sampleTrip !== null && sampleTrip.id === tripId;
+  const trip = isSample ? sampleTrip : trips.find((item) => item.id === tripId);
   const day = trip?.days.find((item) => item.date === date);
   const selectPlace = useCallback((id: string) => setSelectedId(id), []);
 
@@ -70,6 +80,12 @@ export default function Home() {
 
   /** Updates appear only after browser storage confirms the save. */
   async function saveTrip(next: Trip) {
+    if (isSample) {
+      const updated = { ...next, revision: next.revision + 1 };
+      setSampleTrip(updated);
+      clearRoute();
+      return updated;
+    }
     const saved = await api<Trip>(`/trips/${next.id}`, 'PUT', next);
     setTrips((current) => current.map((item) => (item.id === saved.id ? saved : item)));
     clearRoute();
@@ -256,7 +272,9 @@ export default function Home() {
                   disabled={busy}
                   onClick={() =>
                     void run(async () => {
-                      const sample = await api<Trip>('/trips', 'POST', {
+                      const sample: Trip = {
+                        id: crypto.randomUUID(),
+                        revision: 1,
                         name: 'A little aloha',
                         destination: 'Oʻahu, Hawaii',
                         startDate: '2026-11-14',
@@ -290,8 +308,8 @@ export default function Home() {
                                 : [],
                           }),
                         ),
-                      });
-                      setTrips((current) => [sample, ...current]);
+                      };
+                      setSampleTrip(sample);
                       openTrip(sample);
                     })
                   }
@@ -313,7 +331,7 @@ export default function Home() {
             <section className="section-heading">
               <div>
                 <p className="eyebrow">YOUR NEXT CHAPTER</p>
-                <h2>Trips in the making</h2>
+                <h2>Trips in the future</h2>
               </div>
               <span>
                 {trips.length} {trips.length === 1 ? 'trip' : 'trips'}
@@ -330,7 +348,8 @@ export default function Home() {
                     <p className="eyebrow">{item.destination}</p>
                     <h3>{item.name}</h3>
                     <p>
-                      {item.startDate} — {item.endDate}
+                      {displayDate(item.startDate, true)} —{' '}
+                      {displayDate(item.endDate, true)}
                     </p>
                     <div className="actions">
                       <button className="secondary" onClick={() => openTrip(item)}>
@@ -422,7 +441,8 @@ export default function Home() {
                 <p className="eyebrow">{trip.destination}</p>
                 <h1>{trip.name}</h1>
                 <p>
-                  {trip.startDate} — {trip.endDate} · {trip.days.length} days
+                  {displayDate(trip.startDate, true)} — {displayDate(trip.endDate, true)}{' '}
+                  · {trip.days.length} days
                 </p>
               </div>
               <div className="actions">
@@ -433,15 +453,37 @@ export default function Home() {
                 >
                   Edit trip
                 </button>
-                <button
-                  className="danger"
-                  disabled={busy}
-                  onClick={() => deleteTrip(trip)}
-                >
-                  Delete trip
-                </button>
+                {isSample ? (
+                  <button
+                    disabled={busy}
+                    onClick={() =>
+                      void run(async () => {
+                        const saved = await api<Trip>('/trips', 'POST', trip);
+                        setTrips((current) => [saved, ...current]);
+                        setSampleTrip(null);
+                        openTrip(saved);
+                      })
+                    }
+                  >
+                    Add to my trips
+                  </button>
+                ) : (
+                  <button
+                    className="danger"
+                    disabled={busy}
+                    onClick={() => deleteTrip(trip)}
+                  >
+                    Delete trip
+                  </button>
+                )}
               </div>
             </div>
+            {isSample && (
+              <p className="muted">
+                Explore and edit this sample freely. Choose “Add to my trips” to keep it
+                in Trips in the future.
+              </p>
+            )}
             <nav className="days" aria-label="Itinerary days">
               {trip.days.map((item, index) => (
                 <button
@@ -454,7 +496,7 @@ export default function Home() {
                   }}
                 >
                   <small>DAY {index + 1}</small>
-                  {item.date.slice(5)}
+                  {displayDate(item.date)}
                 </button>
               ))}
             </nav>

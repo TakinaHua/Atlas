@@ -15,7 +15,7 @@ Open **http://localhost:3000**. Keep the terminal running; Ctrl+C stops both ser
 
 ## Review the frontend
 
-- Choose **Explore a sample trip** for a three-day Hawaii itinerary with two mapped stops, or **Plan a trip** to start your own.
+- Choose **Explore a sample trip** to explore an unsaved three-day Hawaii itinerary with two mapped stops. Choose **Add to my trips** to keep it, or **Plan a trip** to start your own.
 - Open a trip, choose a day, and add places with names, categories, notes, and optional coordinates.
 - Edit, reorder, select, or remove stops. Coordinates are required for map markers; addresses are not automatically geocoded.
 - Return to **My trips** to switch trips. Changes survive refresh in the same browser.

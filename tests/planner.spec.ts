@@ -63,13 +63,13 @@ test('create, edit, reorder, day navigation, persistence, mobile, and delete', a
   await page.locator('.stops li').first().getByRole('button', { name: 'Remove' }).click();
   await expect(page.locator('.stops li')).toHaveCount(1);
   await page.getByRole('button', { name: 'Delete trip', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Trips in the making' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Trips in the future' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
 test('invalid import leaves existing trips untouched', async ({ page }) => {
   await createTrip(page);
-  await page.getByRole('button', { name: 'My trips' }).click();
+  await page.getByRole('button', { name: 'My trips', exact: true }).click();
   await page.getByLabel('Import JSON backup').setInputFiles({
     name: 'bad.json',
     mimeType: 'application/json',
@@ -108,6 +108,7 @@ test('sample trip is usable and failed storage saves retain form input', async (
 }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Explore a sample trip' }).click();
+  await page.getByRole('button', { name: 'Add to my trips' }).click();
   await expect(page.getByRole('heading', { name: 'A little aloha' })).toBeVisible();
   await expect(page.locator('.map-pin')).toHaveCount(2);
   await page.getByRole('button', { name: 'Edit trip', exact: true }).click();
@@ -128,9 +129,10 @@ test('dashboard delete can be canceled and persists without removing other trips
   page,
 }) => {
   await createTrip(page);
-  await page.getByRole('button', { name: 'My trips' }).click();
+  await page.getByRole('button', { name: 'My trips', exact: true }).click();
   await page.getByRole('button', { name: 'Explore a sample trip' }).click();
-  await page.getByRole('button', { name: 'My trips' }).click();
+  await page.getByRole('button', { name: 'Add to my trips' }).click();
+  await page.getByRole('button', { name: 'My trips', exact: true }).click();
   const remove = page.getByRole('button', {
     name: 'Delete Pittsburgh weekend',
     exact: true,
@@ -144,4 +146,25 @@ test('dashboard delete can be canceled and persists without removing other trips
   await page.reload();
   await expect(page.locator('.trip-card')).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'A little aloha' })).toBeVisible();
+});
+
+test('sample stays unsaved until explicitly added and displays readable dates', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Explore a sample trip' }).click();
+  await expect(page.getByRole('button', { name: 'DAY 1 Nov 14' })).toBeVisible();
+  await page.getByRole('button', { name: 'My trips', exact: true }).click();
+  await expect(page.locator('.trip-card')).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('.trip-card')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Explore a sample trip' }).click();
+  await page.getByRole('button', { name: 'Edit trip', exact: true }).click();
+  await page.getByLabel('Trip name', { exact: true }).fill('My Hawaii plans');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByRole('button', { name: 'Add to my trips' }).click();
+  await expect(page.getByRole('button', { name: 'Add to my trips' })).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('.trip-card')).toHaveCount(1);
+  await expect(page.getByRole('heading', { name: 'My Hawaii plans' })).toBeVisible();
 });
