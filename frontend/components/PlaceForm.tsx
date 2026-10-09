@@ -1,6 +1,18 @@
+'use client';
+
+import { useState } from 'react';
 import type { Place } from '../lib/types';
 
+const categories = ['Sightseeing', 'Food & drink', 'Nature', 'Stay'];
+
 export default function PlaceForm({ place }: { place?: Place }) {
+  const savedCategory = place?.category ?? 'Sightseeing';
+  const [category, setCategory] = useState(
+    categories.includes(savedCategory) ? savedCategory : 'Other',
+  );
+  const [customCategory, setCustomCategory] = useState(
+    categories.includes(savedCategory) || savedCategory === 'Other' ? '' : savedCategory,
+  );
   return (
     <>
       <label>
@@ -47,12 +59,29 @@ export default function PlaceForm({ place }: { place?: Place }) {
       </p>
       <label>
         Category
-        <select name="category" defaultValue={place?.category || 'Sightseeing'}>
-          {['Sightseeing', 'Food & drink', 'Nature', 'Stay', 'Other'].map((category) => (
+        <select
+          aria-label="Category"
+          name={category === 'Other' ? 'categoryPreset' : 'category'}
+          value={category}
+          onChange={(event) => setCategory(event.target.value)}
+        >
+          {[...categories, 'Other'].map((category) => (
             <option key={category}>{category}</option>
           ))}
         </select>
       </label>
+      {category === 'Other' && (
+        <label>
+          Custom category
+          <input
+            name="category"
+            maxLength={80}
+            value={customCategory}
+            onChange={(event) => setCustomCategory(event.target.value)}
+            placeholder="Enter your own category"
+          />
+        </label>
+      )}
       <label>
         Notes
         <textarea name="notes" maxLength={2000} rows={3} defaultValue={place?.notes} />

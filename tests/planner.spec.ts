@@ -168,3 +168,28 @@ test('sample stays unsaved until explicitly added and displays readable dates', 
   await expect(page.locator('.trip-card')).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'My Hawaii plans' })).toBeVisible();
 });
+
+test('Other category accepts custom text and preserves it when editing', async ({
+  page,
+}) => {
+  await createTrip(page);
+  await page.getByRole('button', { name: 'Add place' }).click();
+  await page.getByLabel('Place name').fill('Evening concert');
+  await page.getByLabel('Category', { exact: true }).selectOption('Other');
+  await expect(page.getByLabel('Custom category')).toHaveValue('');
+  await page.getByLabel('Custom category').fill('Live music');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.locator('.stops li')).toContainText('Live music');
+  await page.reload();
+  await page.getByRole('button', { name: 'Open itinerary' }).click();
+  await page
+    .locator('.stops li')
+    .getByRole('button', { name: 'Edit', exact: true })
+    .click();
+  await expect(page.getByLabel('Category', { exact: true })).toHaveValue('Other');
+  await expect(page.getByLabel('Custom category')).toHaveValue('Live music');
+  await page.getByLabel('Category', { exact: true }).selectOption('Nature');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.locator('.stops li')).toContainText('Nature');
+  await expect(page.locator('.stops li')).not.toContainText('Live music');
+});

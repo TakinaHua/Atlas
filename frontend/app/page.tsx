@@ -149,7 +149,7 @@ export default function Home() {
       id: editor.place?.id || crypto.randomUUID(),
       name: String(data.get('name')).trim(),
       address: String(data.get('address')).trim(),
-      category: String(data.get('category')),
+      category: String(data.get('category')).trim(),
       notes: String(data.get('notes')).trim(),
       latitude: latitudeText === '' ? null : Number(latitudeText),
       longitude: longitudeText === '' ? null : Number(longitudeText),
