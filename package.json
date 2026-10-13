@@ -4,20 +4,21 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "frontend"
+    "frontend",
+    "backend"
   ],
   "engines": {
     "node": ">=24"
   },
   "scripts": {
     "dev": "concurrently -k -n api,web \"npm:dev:api\" \"npm:dev:web\"",
-    "dev:api": "node --env-file-if-exists=.env --watch backend/server.js",
+    "dev:api": "npm run dev --workspace=atlas-backend",
     "dev:web": "npm run dev --workspace=@atlas/frontend",
-    "build": "npm run build --workspace=@atlas/frontend",
-    "start": "concurrently -k -n api,web \"node --env-file-if-exists=.env backend/server.js\" \"npm run start --workspace=@atlas/frontend\"",
-    "test": "node --test tests/server.test.js && node --test archive/vanilla-frontend/tests/*.test.js",
+    "build": "npm run build --workspace=atlas-backend && npm run build --workspace=@atlas/frontend",
+    "start": "concurrently -k -n api,web \"npm run start --workspace=atlas-backend\" \"npm run start --workspace=@atlas/frontend\"",
+    "test": "npm test --workspace=atlas-backend && node --test tests/server.test.js && node --test archive/vanilla-frontend/tests/*.test.js",
     "test:browser": "playwright test",
-    "check": "npm run typecheck --workspace=@atlas/frontend && prettier --check frontend backend/server.js tests docs/architecture.md docs/backend-plan.md README.md package.json playwright.config.ts",
+    "check": "npm run typecheck --workspace=atlas-backend && npm run typecheck --workspace=@atlas/frontend && prettier --check frontend backend/server.js tests docs/architecture.md docs/backend-plan.md README.md package.json playwright.config.ts",
     "format": "prettier --write frontend backend/server.js tests docs/architecture.md docs/backend-plan.md README.md package.json playwright.config.ts"
   },
   "devDependencies": {

@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:3000**. Keep the terminal running; Ctrl+C stops both servers. The frontend runs on port 3000 and the minimal Express API on 127.0.0.1:8000. `/api/health` is proxied through the frontend. If either port is occupied, stop your other Atlas instance first. Use the same browser address every time: localhost and 127.0.0.1 have separate browser storage.
+Open **http://localhost:3000**. Keep the terminal running; Ctrl+C stops both servers. The frontend runs on port 3000 and the TypeScript Express API on 127.0.0.1:8000. `/api/*` is proxied through the frontend. The API persists trip/day/destination CRUD in SQLite; the itinerary UI still uses browser storage. If either port is occupied, stop your other Atlas instance first. Use the same browser address every time: localhost and 127.0.0.1 have separate browser storage.
 
 ## Review the frontend
 
@@ -25,16 +25,16 @@ Map tiles require internet and use OpenStreetMap. Markers and itinerary editing 
 
 ## Scope and storage
 
-This milestone is for frontend review. Trips are saved in localStorage under `atlas.preview.trips.v1`. No account, database, route optimization, AI agent, or driving-route backend is active. The Express scaffold exposes health only; other API calls return 501. Full backend work is deferred until UI approval.
+This milestone is for frontend review. Trips are saved in localStorage under `atlas.preview.trips.v1`. The independent Phase 1 API supports trip, day, and destination CRUD, updates, and reordering with SQLite persistence. Frontend itinerary screens are not yet connected to it. Accounts, route optimization, AI agents, and driving-route services remain unimplemented.
 
-The previous Python backend and its database remain untouched in `backend/` for recovery. They are inactive and are not needed for npm setup. Existing Django database trips are not automatically migrated; JSON exports can be imported into this preview. Historical architecture and validation notes describe prior versions, not current behavior.
+The previous JavaScript preview scaffold, Python backend, and Django database remain untouched in `backend/` for recovery. They are inactive and are not needed for npm setup. Existing Django database trips are not automatically migrated; JSON exports can be imported into this preview. Historical architecture and validation notes describe prior versions, not current behavior.
 
 ## Files and checks
 
 - `frontend/app/page.tsx`: dashboard, trip/day navigation, and place editing.
 - `frontend/components/`: forms, accessible dialogs, and Leaflet map.
 - `frontend/lib/preview-store.ts`: validated browser persistence and import/export boundary.
-- `backend/server.js`: minimal Express scaffold.
+- `backend/src/`: active TypeScript REST API with SQLite persistence. See [backend setup and manual tests](backend/README-phase1.md).
 - `tests/`: current preview checks; previous backend-dependent browser tests are preserved in `archive/`.
 
 ```sh
@@ -45,6 +45,6 @@ npm run build
 npm run test:browser
 ```
 
-Browser tests use installed Google Chrome. `npm run build` builds the frontend; `npm start` runs the build and Express. This is a local review app, not a hosted production deployment.
+Browser tests use installed Google Chrome. `npm run build` builds the frontend and backend; `npm start` runs the build and Express. This is a local review app, not a hosted production deployment.
 
 Optional settings are in `.env.example`. Express loads root `.env`; for a custom API origin export `ATLAS_API_URL` in the shell before starting Next.
