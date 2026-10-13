@@ -1,5 +1,22 @@
 import { test, expect, type Page } from '@playwright/test';
 
+// Remove only records created by this test; never clear a developer's database.
+let initialIds = new Set<string>();
+test.beforeEach(async ({ request }) => {
+  const response = await request.get('/api/itineraries');
+  expect(response.ok()).toBe(true);
+  const { trips } = await response.json();
+  initialIds = new Set(trips.map((trip: { id: string }) => trip.id));
+});
+test.afterEach(async ({ request }) => {
+  const { trips } = await (await request.get('/api/itineraries')).json();
+  for (const trip of trips)
+    if (!initialIds.has(trip.id))
+      await request.delete(`/api/itineraries/${encodeURIComponent(trip.id)}`, {
+        data: { revision: trip.revision },
+      });
+});
+
 async function createTrip(page: Page) {
   await page.goto('/');
   await expect(page.getByRole('status')).toHaveCount(0);
@@ -41,7 +58,7 @@ test('create, edit, reorder, day navigation, persistence, mobile, and delete', a
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Book tickets before arrival.')).toBeVisible();
   await page.screenshot({
-    path: 'artifacts/browser/planner-desktop.png',
+    path: 'test-results/planner-desktop.png',
     fullPage: true,
   });
   await page.getByRole('button', { name: /DAY 2/ }).click();
@@ -55,7 +72,7 @@ test('create, edit, reorder, day navigation, persistence, mobile, and delete', a
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('.leaflet-container')).toBeVisible();
   await expect(page.locator('.map-pin')).toHaveCount(2);
-  await page.screenshot({ path: 'artifacts/browser/planner-mobile.png', fullPage: true });
+  await page.screenshot({ path: 'test-results/planner-mobile.png', fullPage: true });
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
   ).toBe(true);
@@ -75,7 +92,7 @@ test('invalid import leaves existing trips untouched', async ({ page }) => {
     mimeType: 'application/json',
     buffer: Buffer.from('[{"id":"broken"}]'),
   });
-  await expect(page.locator('main').getByRole('alert')).toContainText('Every trip needs');
+  await expect(page.locator('main').getByRole('alert')).toContainText('Invalid input');
   await expect(page.getByRole('heading', { name: 'Pittsburgh weekend' })).toBeVisible();
 });
 
@@ -95,17 +112,15 @@ test('legacy import preserves local data and avoids duplicates', async ({ page }
     legacy,
   );
   await page.goto('/');
-  await page.getByRole('button', { name: 'Import old browser trips' }).click();
+  await page.getByRole('button', { name: 'Import browser trips' }).click();
   await expect(page.getByRole('status')).toContainText('Imported 1 trips');
-  await page.getByRole('button', { name: 'Import old browser trips' }).click();
+  await page.getByRole('button', { name: 'Import browser trips' }).click();
   await expect(page.getByRole('status')).toContainText('1 already imported');
   expect(await page.evaluate(() => localStorage.getItem('atlas.trips.v1'))).toBe(legacy);
-  await page.screenshot({ path: 'artifacts/browser/dashboard.png', fullPage: true });
+  await page.screenshot({ path: 'test-results/dashboard.png', fullPage: true });
 });
 
-test('sample trip is usable and failed storage saves retain form input', async ({
-  page,
-}) => {
+test('sample trip is usable and failed API saves retain form input', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Explore a sample trip' }).click();
   await page.getByRole('button', { name: 'Add to my trips' }).click();
@@ -113,13 +128,13 @@ test('sample trip is usable and failed storage saves retain form input', async (
   await expect(page.locator('.map-pin')).toHaveCount(2);
   await page.getByRole('button', { name: 'Edit trip', exact: true }).click();
   await page.getByLabel('Trip name', { exact: true }).fill('Unsaved name');
-  await page.evaluate(() => {
-    Storage.prototype.setItem = () => {
-      throw new DOMException('Quota', 'QuotaExceededError');
-    };
-  });
+  await page.route('**/api/itineraries/*', (route) =>
+    route.request().method() === 'PUT' ? route.abort() : route.continue(),
+  );
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.locator('dialog').getByRole('alert')).toContainText('not saved');
+  await expect(page.locator('dialog').getByRole('alert')).toContainText(
+    'Could not confirm the save',
+  );
   await expect(page.getByLabel('Trip name', { exact: true })).toHaveValue('Unsaved name');
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'A little aloha' })).toBeVisible();
@@ -192,4 +207,67 @@ test('Other category accepts custom text and preserves it when editing', async (
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.locator('.stops li')).toContainText('Nature');
   await expect(page.locator('.stops li')).not.toContainText('Live music');
+});
+
+test('server trips appear in a fresh browser; preview import preserves original data', async ({
+  page,
+  browser,
+}) => {
+  await createTrip(page);
+  await addPlace(page, 'Saved without coordinates', '', '');
+  const fresh = await browser.newContext();
+  try {
+    const other = await fresh.newPage();
+    await other.goto(page.url());
+    await expect(
+      other.getByRole('heading', { name: 'Pittsburgh weekend' }),
+    ).toBeVisible();
+    await other.getByRole('button', { name: 'Open itinerary' }).click();
+    await expect(other.locator('.stops li')).toContainText('Saved without coordinates');
+  } finally {
+    await fresh.close();
+  }
+  const preview = JSON.stringify([
+    {
+      id: 'preview-import',
+      name: 'Browser trip',
+      destination: 'Oahu',
+      startDate: '2027-01-01',
+      endDate: '2027-01-01',
+      revision: 4,
+      days: [{ date: '2027-01-01', places: [] }],
+    },
+  ]);
+  await page.evaluate(
+    (value) => localStorage.setItem('atlas.preview.trips.v1', value),
+    preview,
+  );
+  await page.reload();
+  await page.getByRole('button', { name: 'Import browser trips' }).click();
+  await expect(page.getByRole('status')).toContainText('Imported 1 trips');
+  await page.getByRole('button', { name: 'Import browser trips' }).click();
+  await expect(page.getByRole('status')).toContainText('1 already imported');
+  expect(await page.evaluate(() => localStorage.getItem('atlas.preview.trips.v1'))).toBe(
+    preview,
+  );
+});
+
+test('a stale tab cannot overwrite a newer edit', async ({ page, context }) => {
+  await createTrip(page);
+  const other = await context.newPage();
+  await other.goto(page.url());
+  await other.getByRole('button', { name: 'Open itinerary' }).click();
+  await page.getByRole('button', { name: 'Edit trip', exact: true }).click();
+  await page.getByLabel('Trip name', { exact: true }).fill('Newer name');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Newer name' })).toBeVisible();
+  await other.getByRole('button', { name: 'Edit trip', exact: true }).click();
+  await other.getByLabel('Trip name', { exact: true }).fill('Stale name');
+  await other.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(other.locator('dialog').getByRole('alert')).toContainText(
+    'changed elsewhere',
+  );
+  await other.reload();
+  await expect(other.getByRole('heading', { name: 'Newer name' })).toBeVisible();
+  await other.close();
 });

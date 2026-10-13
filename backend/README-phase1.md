@@ -1,10 +1,10 @@
 # Atlas backend — Phase 1
 
-TypeScript + Node.js + Express API for storing trips, ordered days, and ordered destinations. SQLite persists data locally. Mapping, geocoding, route calculation, Dijkstra, authentication, and frontend integration are outside this phase.
+TypeScript + Node.js + Express API for storing trips, ordered days, and ordered destinations. SQLite persists data locally. Mapping, geocoding, route calculation, Dijkstra, and authentication are outside this phase. Frontend API integration is now implemented; see [integration details](../docs/frontend-api-integration.md).
 
 ## Integration status
 
-The root npm workspace now starts this API on port 8000 alongside the Next.js frontend on port 3000. Existing `backend/server.js` and Django files are preserved but are not started by root scripts. Existing Django database contents are not migrated; this API uses its own `data/atlas.sqlite`. The frontend proxy already forwards `/api/*` to port 8000, but the itinerary UI still uses browser storage until frontend integration is implemented.
+The root npm workspace now starts this API on port 8000 alongside the Next.js frontend on port 3000. Existing `backend/server.js` and Django files are preserved but are not started by root scripts. Existing Django database contents are not migrated; this API uses its own `data/atlas.sqlite`. The frontend proxy already forwards `/api/*` to port 8000, and the itinerary UI now saves through the API.
 
 From the project root: `npm install`, then `npm run dev`. Root `npm run build` builds both packages; `npm start` runs both builds. Root `npm test` covers this API and the retained legacy checks.
 
@@ -18,7 +18,7 @@ cp .env.example .env
 npm run dev
 ```
 
-API: `http://127.0.0.1:8000/api`. The existing Next.js frontend remains unchanged and still uses browser storage. Root `npm run dev` starts both services. Root `.env` is loaded first, then `backend/.env` overrides it; exported shell variables take precedence.
+API: `http://127.0.0.1:8000/api`. The Next.js frontend now saves itineraries in SQLite. Root `npm run dev` starts both services. Root `.env` is loaded first, then `backend/.env` overrides it; exported shell variables take precedence.
 
 ```sh
 npm run typecheck
@@ -38,7 +38,7 @@ npm start
 
 SQLite creates the data directory automatically. Each trip, including its days and destinations, is stored as a JSON aggregate in one row. This keeps the first version small and makes nested changes and deletes atomic. Mutations use transactions, a busy timeout, WAL, and full synchronization. There is no in-memory write cache. A failed mutation rolls back. The API returns success only after committing.
 
-For a backup, stop the server and copy the database file. Do not delete the data directory unless you want to erase all trips. Database files and journal files are ignored by Git. Keep the database on a local disk. This synchronous aggregate design suits a small local app; large datasets would benefit from normalized tables and pagination. Concurrent valid edits are applied in transaction order, without optimistic version checks. This API has no user accounts or authorization; it is intended for local use.
+For a backup, stop the server and copy the database file. Do not delete the data directory unless you want to erase all trips. Database files and journal files are ignored by Git. Keep the database on a local disk. This synchronous aggregate design suits a small local app; large datasets would benefit from normalized tables and pagination. The original `/api/trips` endpoints apply edits in transaction order; each edit also increments a revision. The frontend `/api/itineraries` endpoints require the current revision for saves and deletes, preventing stale edits. This API has no user accounts or authorization; it is intended for local use.
 
 ## Models and behavior
 

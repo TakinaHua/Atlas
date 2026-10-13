@@ -47,6 +47,7 @@ export class TripStore {
       const trip = this.get(id);
       const result = change(trip);
       trip.updatedAt = new Date().toISOString();
+      trip.revision = (trip.revision ?? 1) + 1;
       this.db
         .prepare('UPDATE trips SET document = ? WHERE id = ?')
         .run(JSON.stringify(trip), id);
@@ -60,6 +61,17 @@ export class TripStore {
   delete(id: string): void {
     const result = this.db.prepare('DELETE FROM trips WHERE id = ?').run(id);
     if (!result.changes) throw new ApiError(404, 'NOT_FOUND', 'Trip not found');
+  }
+  transaction<T>(action: () => T): T {
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const result = action();
+      this.db.exec('COMMIT');
+      return result;
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
   }
   close(): void {
     this.db.close();

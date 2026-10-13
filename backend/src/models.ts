@@ -1,9 +1,11 @@
 export interface Destination {
   id: string;
   name: string;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   notes?: string | null;
+  address?: string;
+  category?: string;
 }
 
 export interface DayPlan {
@@ -15,6 +17,8 @@ export interface DayPlan {
 }
 
 export interface Trip {
+  destination?: string;
+  revision?: number;
   id: string;
   name: string;
   startDate?: string | null;

@@ -1,4 +1,4 @@
-/** Preview itinerary records use date-only strings; compatible with exported trip backups. */
+/** Server-backed itinerary records use date-only strings; compatible with exported trip backups. */
 export interface Place {
   id: string;
   name: string;

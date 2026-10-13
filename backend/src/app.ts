@@ -1,3 +1,4 @@
+import { itineraryRouter } from './itineraries.js';
 import express, { type ErrorRequestHandler } from 'express';
 import cors from 'cors';
 import { randomUUID } from 'node:crypto';
@@ -64,6 +65,7 @@ export function createApp(
       },
     }),
   );
+  app.use('/api/itineraries', express.json({ limit: '1mb' }));
   app.use(express.json({ limit: '100kb' }));
   app.use((req, _res, next) => {
     if (['POST', 'PATCH', 'PUT'].includes(req.method) && !req.is('application/json'))
@@ -72,6 +74,7 @@ export function createApp(
       );
     next();
   });
+  app.use('/api/itineraries', itineraryRouter(store));
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
   app.get('/api/trips', (_req, res) => res.json(store.list()));
   app.post('/api/trips', (req, res) => {
@@ -209,15 +212,13 @@ export function createApp(
   );
   const errors: ErrorRequestHandler = (error, _req, res, _next) => {
     if (error instanceof ZodError) {
-      res
-        .status(400)
-        .json({
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid request',
-            details: error.issues,
-          },
-        });
+      res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid request',
+          details: error.issues,
+        },
+      });
       return;
     }
     if (error instanceof ApiError) {
@@ -233,25 +234,19 @@ export function createApp(
       return;
     }
     if (error.status >= 400 && error.status < 500) {
-      res
-        .status(error.status)
-        .json({
-          error: {
-            code: 'INVALID_REQUEST',
-            message:
-              error.status === 413
-                ? 'Request body exceeds 100kb'
-                : 'Invalid request body',
-          },
-        });
+      res.status(error.status).json({
+        error: {
+          code: 'INVALID_REQUEST',
+          message:
+            error.status === 413 ? 'Request body is too large' : 'Invalid request body',
+        },
+      });
       return;
     }
     console.error(error);
-    res
-      .status(500)
-      .json({
-        error: { code: 'INTERNAL_ERROR', message: 'An unexpected server error occurred' },
-      });
+    res.status(500).json({
+      error: { code: 'INTERNAL_ERROR', message: 'An unexpected server error occurred' },
+    });
   };
   app.use(errors);
   return app;

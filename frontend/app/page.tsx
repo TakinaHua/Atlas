@@ -6,7 +6,7 @@ import EditorDialog from '../components/EditorDialog';
 import TripForm from '../components/TripForm';
 import PlaceForm from '../components/PlaceForm';
 import { itineraryDates } from '../lib/api';
-import { previewStore as api } from '../lib/preview-store';
+import { api } from '../lib/remote-api';
 import type { CalculatedRoute, Place, Trip } from '../lib/types';
 
 // Leaflet needs the browser DOM and must not run during server rendering.
@@ -15,7 +15,7 @@ const TripMap = dynamic(() => import('../components/TripMap'), {
   loading: () => <div className="map empty">Opening the map…</div>,
 });
 type Editor = { kind: 'trip'; trip?: Trip } | { kind: 'place'; place?: Place };
-const LOCAL_TRIPS_KEY = 'atlas.trips.v1';
+const LOCAL_TRIPS_KEYS = ['atlas.preview.trips.v1', 'atlas.trips.v1'];
 function displayDate(date: string, includeYear = false) {
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
@@ -55,8 +55,14 @@ export default function Home() {
   useEffect(() => {
     async function load() {
       try {
+        try {
+          setHasLocalTrips(
+            LOCAL_TRIPS_KEYS.some((key) => Boolean(localStorage.getItem(key))),
+          );
+        } catch {
+          /* Browser storage is optional; server trips still work. */
+        }
         await refresh();
-        setHasLocalTrips(Boolean(localStorage.getItem(LOCAL_TRIPS_KEY)));
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Unable to load trips.');
       } finally {
@@ -78,7 +84,7 @@ export default function Home() {
     setSelectedId(null);
   }
 
-  /** Updates appear only after browser storage confirms the save. */
+  /** Updates appear only after the server commits the save. */
   async function saveTrip(next: Trip) {
     if (isSample) {
       const updated = { ...next, revision: next.revision + 1 };
@@ -86,7 +92,7 @@ export default function Home() {
       clearRoute();
       return updated;
     }
-    const saved = await api<Trip>(`/trips/${next.id}`, 'PUT', next);
+    const saved = await api<Trip>(`/trips/${encodeURIComponent(next.id)}`, 'PUT', next);
     setTrips((current) => current.map((item) => (item.id === saved.id ? saved : item)));
     clearRoute();
     return saved;
@@ -188,7 +194,9 @@ export default function Home() {
   function deleteTrip(target: Trip) {
     if (!window.confirm(`Delete “${target.name}” and all its destinations?`)) return;
     void run(async () => {
-      await api(`/trips/${target.id}`, 'DELETE', { revision: target.revision });
+      await api(`/trips/${encodeURIComponent(target.id)}`, 'DELETE', {
+        revision: target.revision,
+      });
       setTrips((current) => current.filter((item) => item.id !== target.id));
       if (tripId === target.id) {
         clearRoute();
@@ -376,8 +384,8 @@ export default function Home() {
             <section className="data-tools">
               <h3>Your trips, kept close</h3>
               <p>
-                Trips are saved in this browser on this address. Export a backup before
-                clearing browser data or moving devices.
+                Trips are saved by Atlas and stay available when you reload or switch
+                browsers on this computer. Export a backup to keep a separate copy.
               </p>
               <div className="actions">
                 <button
@@ -410,12 +418,22 @@ export default function Home() {
                     className="secondary"
                     disabled={busy}
                     onClick={() =>
-                      void run(() =>
-                        importTrips(localStorage.getItem(LOCAL_TRIPS_KEY) || '[]'),
-                      )
+                      void run(async () => {
+                        const saved = LOCAL_TRIPS_KEYS.flatMap((key) => {
+                          const value: unknown = JSON.parse(
+                            localStorage.getItem(key) || '[]',
+                          );
+                          if (!Array.isArray(value))
+                            throw new Error(
+                              'Saved browser trips are invalid. Export or recover them before importing.',
+                            );
+                          return value;
+                        });
+                        await importTrips(JSON.stringify(saved));
+                      })
                     }
                   >
-                    Import old browser trips
+                    Import browser trips
                   </button>
                 )}
               </div>
@@ -599,7 +617,7 @@ export default function Home() {
                 <div className="route-box">
                   <p className="muted">
                     Arrange stops in the order you want to visit. Driving routes and smart
-                    suggestions will follow after the frontend review.
+                    suggestions are planned for a later update.
                   </p>
                 </div>
               </section>

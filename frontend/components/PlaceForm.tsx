@@ -54,8 +54,8 @@ export default function PlaceForm({ place }: { place?: Place }) {
         </label>
       </div>
       <p className="muted">
-        Enter both coordinates for map markers. Addresses are saved as notes; they are not
-        geocoded.
+        Enter both coordinates for map markers. Addresses are saved with each place; they
+        are not geocoded.
       </p>
       <label>
         Category

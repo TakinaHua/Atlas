@@ -22,3 +22,6 @@ artifacts/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
+
+# Isolated browser integration test output
+/frontend/.next-browser-tests/

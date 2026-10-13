@@ -1,7 +1,8 @@
 import type { NextConfig } from 'next';
 
-// A single browser origin proxies the minimal Express preview API.
+// A single browser origin proxies the Express itinerary API.
 const config: NextConfig = {
+  distDir: process.env.ATLAS_NEXT_DIST_DIR || '.next',
   async rewrites() {
     return [
       {
