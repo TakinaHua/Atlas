@@ -15,3 +15,10 @@ playwright-report/
 frontend/next-env.d.ts
 # Keep local screenshots private; the committed validation images remain tracked.
 artifacts/
+
+# Phase 1 backend generated files and local data
+/backend/dist/
+/backend/data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
