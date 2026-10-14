@@ -115,6 +115,9 @@ export default function Home() {
     if (editor?.kind === 'trip') {
       const name = String(data.get('name')).trim();
       const destination = String(data.get('destination')).trim();
+      const destinationLocation = data.get('destinationLocation')
+        ? JSON.parse(String(data.get('destinationLocation')))
+        : null;
       const startDate = String(data.get('startDate'));
       const endDate = String(data.get('endDate'));
       const dates = itineraryDates(startDate, endDate);
@@ -131,12 +134,21 @@ export default function Home() {
       );
       if (previous) {
         openTrip(
-          await saveTrip({ ...previous, name, destination, startDate, endDate, days }),
+          await saveTrip({
+            ...previous,
+            name,
+            destination,
+            destinationLocation,
+            startDate,
+            endDate,
+            days,
+          }),
         );
       } else {
         const created = await api<Trip>('/trips', 'POST', {
           name,
           destination,
+          destinationLocation,
           startDate,
           endDate,
           days,
@@ -630,6 +642,7 @@ export default function Home() {
                   <span className="badge">Explore</span>
                 </div>
                 <TripMap
+                  destinationLocation={trip.destinationLocation}
                   places={day?.places || []}
                   route={route}
                   selectedId={selectedId}

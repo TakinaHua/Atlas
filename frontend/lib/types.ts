@@ -1,3 +1,14 @@
+export interface DestinationLocation {
+  id: string;
+  name: string;
+  label: string;
+  kind: 'city' | 'state';
+  state: string;
+  stateCode: string;
+  latitude: number;
+  longitude: number;
+  zoom: number;
+}
 /** Server-backed itinerary records use date-only strings; compatible with exported trip backups. */
 export interface Place {
   id: string;
@@ -13,6 +24,7 @@ export interface Day {
   places: Place[];
 }
 export interface Trip {
+  destinationLocation?: DestinationLocation | null;
   id: string;
   name: string;
   destination: string;

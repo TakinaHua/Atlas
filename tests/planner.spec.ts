@@ -271,3 +271,93 @@ test('a stale tab cannot overwrite a newer edit', async ({ page, context }) => {
   await expect(other.getByRole('heading', { name: 'Newer name' })).toBeVisible();
   await other.close();
 });
+
+test('U.S. destination search selects and persists a city, supports keyboard and clears stale selection', async ({
+  page,
+  request,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Plan a trip' }).click();
+  await page.getByLabel('Trip name', { exact: true }).fill('Destination search trip');
+  const destination = page.getByRole('combobox', { name: 'Destination', exact: true });
+  await destination.fill('Portland');
+  await expect(
+    page.getByRole('option', { name: 'Portland, Oregon City / town', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('option', { name: 'Portland, Maine City / town', exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole('option', { name: 'Portland, Maine City / town', exact: true })
+    .click();
+  await destination.fill('Honolulu');
+  await expect(
+    page.getByRole('option', { name: 'Honolulu, Hawaii City / town', exact: true }),
+  ).toBeVisible();
+  await destination.press('ArrowDown');
+  await destination.press('Enter');
+  await expect(destination).toHaveValue('Honolulu, Hawaii');
+  await page.getByLabel('Start date').fill('2027-06-01');
+  await page.getByLabel('End date').fill('2027-06-02');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByLabel('Interactive map for Honolulu, Hawaii')).toBeVisible();
+  await page.screenshot({
+    path: 'test-results/destination-honolulu.png',
+    fullPage: true,
+  });
+  const { trips } = await (await request.get('/api/itineraries')).json();
+  const saved = trips.find((t: { name: string }) => t.name === 'Destination search trip');
+  expect(saved.destinationLocation.latitude).toBeCloseTo(21.30694);
+  await page.reload();
+  await page.getByRole('button', { name: 'Open itinerary' }).click();
+  await expect(
+    page.getByText('Trip area: Honolulu, Hawaii', { exact: false }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: /DAY 2/ }).click();
+  await expect(page.getByLabel('Interactive map for Honolulu, Hawaii')).toBeVisible();
+  await page.getByRole('button', { name: 'Edit trip', exact: true }).click();
+  await destination.fill('CA');
+  await page
+    .getByRole('option', { name: 'California, United States State', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(
+    page.getByText('Trip area: California, United States', { exact: false }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: 'test-results/destination-california.png',
+    fullPage: true,
+  });
+  await page.getByRole('button', { name: 'Edit trip', exact: true }).click();
+  await destination.fill('zzzxxyyqq');
+  await expect(page.getByText('No matches.', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Trip area:', { exact: false })).toHaveCount(0);
+});
+
+test('existing trip destination can be selected without losing places; search failures allow manual entry', async ({
+  page,
+}) => {
+  await createTrip(page);
+  await addPlace(page, 'Saved stop', '', '');
+  await page.getByRole('button', { name: 'Edit trip', exact: true }).click();
+  const destination = page.getByRole('combobox', { name: 'Destination', exact: true });
+  await destination.fill('Pittsburgh');
+  await page
+    .getByRole('option', { name: 'Pittsburgh, Pennsylvania City / town', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.stops li')).toContainText('Saved stop');
+  await page.getByRole('button', { name: 'Edit trip', exact: true }).click();
+  await page.route('**/api/destinations?*', (route) =>
+    route.fulfill({ status: 503, body: 'Unavailable' }),
+  );
+  await destination.fill('Remote area');
+  await expect(
+    page.getByText('Destination search is unavailable.', { exact: false }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.stops li')).toContainText('Saved stop');
+});

@@ -1,3 +1,4 @@
+import { searchDestinations } from './destinations.js';
 import { itineraryRouter } from './itineraries.js';
 import express, { type ErrorRequestHandler } from 'express';
 import cors from 'cors';
@@ -75,6 +76,18 @@ export function createApp(
     next();
   });
   app.use('/api/itineraries', itineraryRouter(store));
+  app.get('/api/destinations', (req, res) => {
+    const query = req.query.q;
+    if (typeof query !== 'string' || query.trim().length < 2 || query.length > 100)
+      throw new ApiError(
+        400,
+        'VALIDATION_ERROR',
+        'Enter between 2 and 100 characters to search.',
+      );
+    res
+      .set('Cache-Control', 'public, max-age=3600')
+      .json({ results: searchDestinations(query), attribution: 'GeoNames — CC BY 4.0' });
+  });
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
   app.get('/api/trips', (_req, res) => res.json(store.list()));
   app.post('/api/trips', (req, res) => {

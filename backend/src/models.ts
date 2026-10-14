@@ -1,3 +1,4 @@
+import type { DestinationLocation } from './destinations.js';
 export interface Destination {
   id: string;
   name: string;
@@ -17,6 +18,7 @@ export interface DayPlan {
 }
 
 export interface Trip {
+  destinationLocation?: DestinationLocation | null;
   destination?: string;
   revision?: number;
   id: string;

@@ -505,3 +505,48 @@ footer span {
   font-size: 12px;
   border-radius: 5px;
 }
+
+.destination-search {
+  position: relative;
+}
+.destination-input > input:not([type='hidden']) {
+  width: 100%;
+}
+.destination-input {
+  position: relative;
+}
+.destination-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  list-style: none;
+  margin: 4px 0;
+  padding: 4px;
+  border: 1px solid #b8c8ba;
+  border-radius: 8px;
+  max-height: 210px;
+  overflow-y: auto;
+  background: #fffdf7;
+}
+.destination-results li {
+  cursor: pointer;
+  padding: 9px 12px;
+  border-radius: 5px;
+}
+.destination-results li:hover,
+.destination-results li[aria-selected='true'] {
+  background: #e8eee3;
+}
+.destination-results strong,
+.destination-results small {
+  display: block;
+}
+.destination-results small {
+  color: #52645a;
+}
+.destination-search .muted {
+  font-size: 12px;
+  margin: 6px 0;
+}

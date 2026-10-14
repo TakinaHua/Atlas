@@ -1,3 +1,4 @@
+import { locationInput, resolveLocation } from './destinations.js';
 import { Router } from 'express';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -27,6 +28,7 @@ const place = z
     'Enter both coordinates, or leave both empty.',
   );
 const fields = {
+  destinationLocation: locationInput,
   name: text,
   destination: z.string().trim().max(200),
   startDate: z.iso.date(),
@@ -82,6 +84,7 @@ export function toItinerary(trip: Trip) {
     id: trip.id,
     name: trip.name,
     destination: trip.destination ?? '',
+    destinationLocation: trip.destinationLocation ?? null,
     startDate,
     endDate,
     revision: trip.revision ?? 1,
@@ -115,7 +118,10 @@ function applyItinerary(trip: Trip, input: ItineraryInput): void {
       'Remove the stops on excluded dates before shortening this trip.',
     );
   trip.name = input.name;
-  trip.destination = input.destination;
+  if (input.destinationLocation !== undefined)
+    trip.destinationLocation = resolveLocation(input.destinationLocation);
+  else if (input.destination !== trip.destination) trip.destinationLocation = null;
+  trip.destination = trip.destinationLocation?.label ?? input.destination;
   trip.startDate = input.startDate;
   trip.endDate = input.endDate;
   trip.days = input.days.map((day, i) => ({

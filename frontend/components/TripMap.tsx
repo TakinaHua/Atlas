@@ -2,15 +2,17 @@
 
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import type { CalculatedRoute, Place } from '../lib/types';
+import type { CalculatedRoute, Place, DestinationLocation } from '../lib/types';
 
 /** Leaflet owns the map DOM; React owns the itinerary and route state. */
 export default function TripMap({
   places,
+  destinationLocation,
   route,
   selectedId,
   onSelect,
 }: {
+  destinationLocation?: DestinationLocation | null;
   places: Place[];
   route: CalculatedRoute | null;
   selectedId: string | null;
@@ -23,7 +25,7 @@ export default function TripMap({
 
   useEffect(() => {
     if (!container.current) return;
-    const instance = L.map(container.current).setView([40.44, -79.99], 12);
+    const instance = L.map(container.current).setView([39.5, -98.35], 4);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution:
@@ -75,15 +77,33 @@ export default function TripMap({
     }
     if (bounds.isValid())
       map.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
-  }, [places, route, selectedId, onSelect]);
+    else if (destinationLocation)
+      map.current.setView(
+        [destinationLocation.latitude, destinationLocation.longitude],
+        destinationLocation.zoom,
+      );
+    else map.current.setView([39.5, -98.35], 4);
+  }, [places, route, selectedId, onSelect, destinationLocation]);
 
   return (
     <>
       <div
         ref={container}
         className="map"
-        aria-label="Interactive map of destinations and driving route"
+        aria-label={
+          destinationLocation
+            ? `Interactive map for ${destinationLocation.label}`
+            : 'Interactive map of destinations'
+        }
       />
+      {destinationLocation && (
+        <p className="muted">
+          Trip area: {destinationLocation.label} · Location data by{' '}
+          <a href="https://www.geonames.org/" target="_blank" rel="noreferrer">
+            GeoNames
+          </a>
+        </p>
+      )}
       {tileError && (
         <p role="status">Map tiles are unavailable. Check your internet connection.</p>
       )}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import DestinationSearch from './DestinationSearch';
 import type { Trip } from '../lib/types';
 
 export default function TripForm({ trip }: { trip?: Trip }) {
@@ -25,16 +26,10 @@ export default function TripForm({ trip }: { trip?: Trip }) {
           placeholder="A weekend worth remembering"
         />
       </label>
-      <label>
-        Destination
-        <input
-          name="destination"
-          required
-          maxLength={150}
-          defaultValue={trip?.destination}
-          placeholder="Pittsburgh, Pennsylvania"
-        />
-      </label>
+      <DestinationSearch
+        initialLabel={trip?.destination}
+        initialLocation={trip?.destinationLocation}
+      />
       <div className="form-row">
         <label>
           Start date
