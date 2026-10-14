@@ -650,7 +650,7 @@ export default function Home() {
                 />
                 <p className="muted">
                   Drag to explore, scroll to zoom, or select a numbered destination. Map
-                  tiles use OpenStreetMap. Add coordinates to place your stops on the map.
+                  tiles use OpenStreetMap. Search for a place to add a stop to the map.
                 </p>
               </section>
             </div>
@@ -677,7 +677,7 @@ export default function Home() {
           {editor.kind === 'trip' ? (
             <TripForm trip={editor.trip} />
           ) : (
-            <PlaceForm place={editor.place} />
+            <PlaceForm place={editor.place} location={trip?.destinationLocation} />
           )}
         </EditorDialog>
       )}

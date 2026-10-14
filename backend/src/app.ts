@@ -1,3 +1,4 @@
+import { createPlaceSearch, placeQuery } from './place-search.js';
 import { searchDestinations } from './destinations.js';
 import { itineraryRouter } from './itineraries.js';
 import express, { type ErrorRequestHandler } from 'express';
@@ -57,6 +58,7 @@ export function createApp(
   ],
 ) {
   const app = express();
+  const searchPlaces = createPlaceSearch();
   app.disable('x-powered-by');
   app.use(
     cors({
@@ -87,6 +89,10 @@ export function createApp(
     res
       .set('Cache-Control', 'public, max-age=3600')
       .json({ results: searchDestinations(query), attribution: 'GeoNames — CC BY 4.0' });
+  });
+  app.get('/api/places/search', async (req, res) => {
+    const results = await searchPlaces(placeQuery.parse(req.query));
+    res.json({ results, attribution: '© OpenStreetMap contributors' });
   });
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
   app.get('/api/trips', (_req, res) => res.json(store.list()));

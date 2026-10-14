@@ -32,6 +32,7 @@ async function createTrip(page: Page) {
 async function addPlace(page: Page, name: string, latitude: string, longitude: string) {
   await page.getByRole('button', { name: 'Add place' }).click();
   await page.getByLabel('Place name').fill(name);
+  await page.getByText('Map coordinates (optional)', { exact: true }).click();
   await page.getByLabel('Latitude', { exact: true }).fill(latitude);
   await page.getByLabel('Longitude', { exact: true }).fill(longitude);
   await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -360,4 +361,59 @@ test('existing trip destination can be selected without losing places; search fa
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('.stops li')).toContainText('Saved stop');
+});
+
+test('place search selection saves a map pin; changing address clears it; failures allow manual entry', async ({
+  page,
+}) => {
+  await createTrip(page);
+  let calls = 0;
+  await page.route('**/api/places/search?*', (route) => {
+    calls++;
+    return route.fulfill({
+      json: {
+        results: [
+          {
+            name: 'Point State Park',
+            address: '601 Commonwealth Place, Pittsburgh, Pennsylvania',
+            latitude: 40.4417,
+            longitude: -80.0128,
+          },
+        ],
+      },
+    });
+  });
+  await page.getByRole('button', { name: 'Add place' }).click();
+  await page.getByLabel('Find a place or address').fill('Point State Park Pittsburgh');
+  expect(calls).toBe(0);
+  await page.getByRole('button', { name: 'Search places', exact: true }).click();
+  await page.getByRole('button', { name: /Point State Park.*601 Commonwealth/ }).click();
+  await expect(page.getByLabel('Place name')).toHaveValue('Point State Park');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.locator('.map-pin')).toHaveCount(1);
+  await page.reload();
+  await page.getByRole('button', { name: 'Open itinerary' }).click();
+  await expect(page.locator('.map-pin')).toHaveCount(1);
+  await page
+    .locator('.stops li')
+    .getByRole('button', { name: 'Edit', exact: true })
+    .click();
+  await page.getByLabel('Address', { exact: true }).fill('A different address');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.locator('.map-pin')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Add place' }).click();
+  await page.unroute('**/api/places/search?*');
+  await page.route('**/api/places/search?*', (route) =>
+    route.fulfill({
+      status: 503,
+      json: { error: { message: 'Place search unavailable' } },
+    }),
+  );
+  await page.getByLabel('Find a place or address').fill('Museum');
+  await page.getByRole('button', { name: 'Search places', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Place search unavailable');
+  await page.getByLabel('Place name').fill('Manual museum');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.stops li')).toHaveCount(2);
 });

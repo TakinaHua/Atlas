@@ -7,3 +7,5 @@ The frontend and direct REST API share the same records. Existing Django data re
 Also completed: local U.S. city/state search and saved destination map centering. See [destination search](destination-search.md).
 
 Next: place search/geocoding, road-route provider integration, an independently tested graph/Dijkstra layer, and calculated route display. User accounts and hosted deployment need their own design before exposing this local app publicly.
+
+Place/address lookup is implemented through the Photon proxy at `/api/places/search`; selected results populate saved place coordinates. See [implementation and limits](place-search.md).

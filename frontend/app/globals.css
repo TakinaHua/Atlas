@@ -550,3 +550,16 @@ footer span {
   font-size: 12px;
   margin: 6px 0;
 }
+
+.place-search-results {
+  list-style: none;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.place-search-results button {
+  width: 100%;
+  text-align: left;
+  white-space: normal;
+  margin-bottom: 6px;
+}

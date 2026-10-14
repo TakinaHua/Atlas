@@ -48,3 +48,5 @@ npm run test:browser
 Browser tests use installed Google Chrome and automatically launch an isolated app on ports 3300/8300 with a temporary database and separate Next output. They leave development data untouched. `npm run build` builds the frontend and backend; `npm start` runs the build and Express. This is a local app, not a hosted production deployment.
 
 Optional settings are in `.env.example`. Express loads root `.env`; for a custom API origin export `ATLAS_API_URL` in the shell before starting Next.
+
+Place/address lookup is available in Add/Edit place through Photon, with automatic coordinates and manual fallback. See [place-search setup and testing](docs/place-search.md).
