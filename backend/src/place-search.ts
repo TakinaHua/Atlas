@@ -1,3 +1,4 @@
+import { ProviderCache } from './provider-cache.js';
 import { z } from 'zod';
 import { ApiError } from './store.js';
 
@@ -27,11 +28,21 @@ const feature = z.object({
 export function createPlaceSearch(
   fetcher: typeof fetch = fetch,
   endpoint = process.env.PHOTON_URL ?? 'https://photon.komoot.io/api/',
+  now: () => number = () => performance.now(),
 ) {
-  const cache = new Map<string, { until: number; results: PlaceResult[] }>();
-  let busy = false;
-  let nextRequest = 0;
+  const cache = new ProviderCache<PlaceResult[]>(
+    200,
+    86400000,
+    () =>
+      new ApiError(
+        429,
+        'SEARCH_BUSY',
+        'Search is busy. Please wait a moment and try again.',
+      ),
+    now,
+  );
   return async (input: z.infer<typeof placeQuery>): Promise<PlaceResult[]> => {
+    input = placeQuery.parse(input);
     const url = new URL(endpoint);
     url.searchParams.set('q', input.q);
     url.searchParams.set('limit', '6');
@@ -41,74 +52,65 @@ export function createPlaceSearch(
       url.searchParams.set('lat', String(input.latitude));
       url.searchParams.set('lon', String(input.longitude));
     }
-    const key = url.toString();
-    const hit = cache.get(key);
-    if (hit && hit.until > Date.now()) return hit.results;
-    if (busy || Date.now() < nextRequest)
-      throw new ApiError(
-        429,
-        'SEARCH_BUSY',
-        'Search is busy. Please wait a moment and try again.',
-      );
-    busy = true;
-    nextRequest = Date.now() + 1100;
-    try {
-      const response = await fetcher(url, {
-        signal: AbortSignal.timeout(8000),
-        headers: {
-          'User-Agent': 'AtlasTripPlanner/2.1 (https://github.com/TakinaHua/Atlas)',
-          Accept: 'application/json',
-        },
-      });
-      if (!response.ok) {
-        if (response.status === 429) nextRequest = Date.now() + 60000;
-        throw new Error('Provider unavailable');
-      }
-      const data = z
-        .object({ features: z.array(z.unknown()).max(100) })
-        .parse(await response.json());
-      const results: PlaceResult[] = [];
-      for (const raw of data.features) {
-        const parsed = feature.safeParse(raw);
-        if (!parsed.success) continue;
-        const p = parsed.data.properties;
-        if (String(p.countrycode).toUpperCase() !== 'US') continue;
-        const str = (key: string) =>
-          typeof p[key] === 'string' ? (p[key] as string) : '';
-        const street = [str('housenumber'), str('street')].filter(Boolean).join(' ');
-        const name = str('name') || street || str('city');
-        if (!name) continue;
-        const address = [
-          ...new Set(
-            [
-              street,
-              str('city') || str('district'),
-              str('state'),
-              str('postcode'),
-              str('country'),
-            ].filter(Boolean),
-          ),
-        ].join(', ');
-        const [longitude, latitude] = parsed.data.geometry.coordinates;
-        results.push({
-          name: name.slice(0, 150),
-          address: address.slice(0, 300),
-          latitude,
-          longitude,
+    return cache.get(url.toString(), async () => {
+      try {
+        const response = await fetcher(url, {
+          signal: AbortSignal.timeout(8000),
+          headers: {
+            'User-Agent': 'AtlasTripPlanner/2.1 (https://github.com/TakinaHua/Atlas)',
+            Accept: 'application/json',
+          },
         });
-        if (results.length === 6) break;
+        if (!response.ok) {
+          if (response.status === 429) cache.backoff(60000);
+          throw new Error('Provider unavailable');
+        }
+        const data = z
+          .object({ features: z.array(z.unknown()).max(100) })
+          .parse(await response.json());
+        const results: PlaceResult[] = [];
+        let validFeatures = 0;
+        for (const raw of data.features) {
+          const parsed = feature.safeParse(raw);
+          if (!parsed.success) continue;
+          validFeatures++;
+          const p = parsed.data.properties;
+          if (String(p.countrycode).toUpperCase() !== 'US') continue;
+          const str = (key: string) =>
+            typeof p[key] === 'string' ? (p[key] as string) : '';
+          const street = [str('housenumber'), str('street')].filter(Boolean).join(' ');
+          const name = str('name') || street || str('city');
+          if (!name) continue;
+          const address = [
+            ...new Set(
+              [
+                street,
+                str('city') || str('district'),
+                str('state'),
+                str('postcode'),
+                str('country'),
+              ].filter(Boolean),
+            ),
+          ].join(', ');
+          const [longitude, latitude] = parsed.data.geometry.coordinates;
+          results.push({
+            name: name.slice(0, 150),
+            address: address.slice(0, 300),
+            latitude,
+            longitude,
+          });
+          if (results.length === 6) break;
+        }
+        if (data.features.length > 0 && validFeatures === 0)
+          throw new Error('Malformed provider features');
+        return results;
+      } catch {
+        throw new ApiError(
+          503,
+          'SEARCH_UNAVAILABLE',
+          'Place search is unavailable. Try again later or enter a place manually.',
+        );
       }
-      if (cache.size >= 200) cache.delete(cache.keys().next().value!);
-      cache.set(key, { until: Date.now() + 86400000, results });
-      return results;
-    } catch {
-      throw new ApiError(
-        503,
-        'SEARCH_UNAVAILABLE',
-        'Place search is unavailable. Try again later or enter a place manually.',
-      );
-    } finally {
-      busy = false;
-    }
+    });
   };
 }

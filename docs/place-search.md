@@ -22,3 +22,5 @@ Results are normalized and invalid coordinates/non-U.S. records discarded. No sc
 6. Check the form on a phone-sized screen. Optional coordinates support manual corrections.
 
 Automated tests use mocked provider responses, avoiding reliance on external service availability. A separate live request returned Point State Park in Pittsburgh successfully during implementation.
+
+See [cache behavior and verification](cache-behavior.md) for expiry, concurrency, eviction, recovery, and process limits.

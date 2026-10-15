@@ -28,3 +28,5 @@ Verification: unit/API tests mock provider responses and cover request validatio
 OSRM computes this road route. See [the implemented walking graph demo](dijkstra-demo.md) for the active independent algorithm and its limited coverage. The preserved Django `backend/trips/routing.py` contains an older Dijkstra implementation, but the active TypeScript service does not call it. Running Dijkstra on an all-pairs shortest-travel-time matrix would largely repeat already-solved paths and does not establish an independent road-routing algorithm.
 
 The implemented demo uses a bounded downtown Pittsburgh walking graph, with OSM nodes/segments and nonnegative length weights. Its own Dijkstra result is separate from OSRM driving estimates; see the linked implementation notes for tested behavior, access rules and limitations.
+
+See [cache behavior and verification](cache-behavior.md) for expiry, concurrency, eviction, recovery, and process limits.

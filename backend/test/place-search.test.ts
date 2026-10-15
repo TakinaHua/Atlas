@@ -62,3 +62,21 @@ test('search validates query and location pair and respects CORS without externa
     .set('Origin', 'https://not-atlas.example')
     .expect(403);
 });
+
+test('malformed-only features are not cached as empty results and retry can recover', async () => {
+  let now = 0;
+  let calls = 0;
+  const search = createPlaceSearch(
+    (async () => {
+      calls++;
+      return Response.json({ features: calls === 1 ? [{}] : [result] });
+    }) as typeof fetch,
+    'https://example.test/api/',
+    () => now,
+  );
+  await assert.rejects(search({ q: 'Museum' }), { status: 503 });
+  now = 1100;
+  assert.equal((await search({ q: 'Museum' })).length, 1);
+  assert.equal((await search({ q: 'Museum' })).length, 1);
+  assert.equal(calls, 2);
+});

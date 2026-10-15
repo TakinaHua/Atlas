@@ -59,3 +59,5 @@ Ordered driving routes are available through OSRM, with map geometry, distance, 
 Choose **Explore walking demo** to try Atlas’s own Dijkstra implementation. See [algorithm, dataset and limitations](docs/dijkstra-demo.md).
 
 For the final prototype review, follow [the acceptance checklist](docs/prototype-acceptance.md). `npm run test:production` builds an isolated production frontend, uses a temporary database and available local ports, restarts the compiled API, and verifies persistence/proxy/local routing. It does not contact search or routing providers.
+
+Provider caching policies and regression coverage are documented in [cache behavior](docs/cache-behavior.md).
