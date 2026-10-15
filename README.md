@@ -11,14 +11,14 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:3000**. Keep the terminal running; Ctrl+C stops both servers. The frontend runs on port 3000 and the TypeScript Express API on 127.0.0.1:8000. `/api/*` is proxied through the frontend. The API persists trip/day/destination CRUD in SQLite; the itinerary UI saves through the API. If either port is occupied, stop your other Atlas instance first. Server trips are shared across browsers connected to this local API. Old browser-only trips remain on their original browser address until explicitly imported.
+Open **http://127.0.0.1:3000**. Keep the terminal running; Ctrl+C stops both servers. The frontend runs on port 3000 and the TypeScript Express API on 127.0.0.1:8000. `/api/*` is proxied through the frontend. The API persists trip/day/destination CRUD in SQLite; the itinerary UI saves through the API. If either port is occupied, stop your other Atlas instance first. Server trips are shared across browsers connected to this local API. Old browser-only trips remain on their original browser address until explicitly imported.
 
 ## Review the frontend
 
 - Choose **Explore a sample trip** to explore an unsaved three-day Hawaii itinerary with two mapped stops. Choose **Add to my trips** to keep it, or **Plan a trip** to start your own.
 - Search a U.S. city or state in the trip form and select a suggestion to center the map. Text-only destinations remain supported. See [destination search](docs/destination-search.md).
-- Open a trip, choose a day, and add places with names, categories, notes, and optional coordinates.
-- Edit, reorder, select, or remove stops. Coordinates are required for map markers; addresses are not automatically geocoded.
+- Open a trip, choose a day, and search for a place/address. Select a result to fill its coordinates, or enter details manually.
+- Edit, reorder, move between days, select, or remove stops. Use **Calculate driving route** for road geometry and estimated time; every stop needs a map location.
 - Return to **My trips** to switch trips. Changes survive refresh, server restarts, and opening another browser.
 - Export JSON backups, or choose **Import browser trips** to copy older `atlas.preview.trips.v1` and `atlas.trips.v1` records into SQLite. Duplicate IDs are skipped; the original browser data is never removed.
 
@@ -26,7 +26,7 @@ Map tiles require internet and use OpenStreetMap. Markers and itinerary editing 
 
 ## Scope and storage
 
-Trips are saved in `backend/data/atlas.sqlite`. The frontend uses `/api/itineraries` for atomic whole-trip saves, revision checks, and import; the Phase 1 `/api/trips` endpoints remain available and use the same records. Addresses, categories, notes, optional coordinates, dates, and stop order are preserved. Concurrent stale saves or deletes return a conflict rather than overwriting a newer edit. Accounts, route optimization, AI agents, and driving-route services remain unimplemented.
+Trips are saved in `backend/data/atlas.sqlite`. The frontend uses `/api/itineraries` for atomic whole-trip saves, revision checks, and import; the Phase 1 `/api/trips` endpoints remain available and use the same records. Addresses, categories, notes, optional coordinates, dates, and stop order are preserved. Concurrent stale saves or deletes return a conflict rather than overwriting a newer edit. Accounts, automatic stop-order optimization, and AI agents remain unimplemented. OSRM driving routes and the bounded independent Dijkstra walking demonstration are available.
 
 The previous JavaScript preview scaffold, Python backend, and Django database remain untouched in `backend/` for recovery. They are inactive and are not needed for npm setup. Existing Django database trips are not automatically migrated; compatible itinerary JSON exports can be imported through the interface. Historical architecture and validation notes describe prior versions, not current behavior.
 
@@ -43,6 +43,7 @@ npm test
 npm run check
 npm run build
 npm run test:browser
+npm run test:production
 ```
 
 Browser tests use installed Google Chrome and automatically launch an isolated app on ports 3300/8300 with a temporary database and separate Next output. They leave development data untouched. `npm run build` builds the frontend and backend; `npm start` runs the build and Express. This is a local app, not a hosted production deployment.
@@ -56,3 +57,5 @@ Stops can now move between itinerary days while preserving their details and coo
 Ordered driving routes are available through OSRM, with map geometry, distance, and estimated time. See [road-routing setup and tests](docs/road-routing.md). An independent, limited Pittsburgh walking-graph demonstration is also available.
 
 Choose **Explore walking demo** to try Atlas’s own Dijkstra implementation. See [algorithm, dataset and limitations](docs/dijkstra-demo.md).
+
+For the final prototype review, follow [the acceptance checklist](docs/prototype-acceptance.md). `npm run test:production` builds an isolated production frontend, uses a temporary database and available local ports, restarts the compiled API, and verifies persistence/proxy/local routing. It does not contact search or routing providers.

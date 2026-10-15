@@ -593,7 +593,7 @@ export default function Home() {
                 <h1>{trip.name}</h1>
                 <p>
                   {displayDate(trip.startDate, true)} — {displayDate(trip.endDate, true)}{' '}
-                  · {trip.days.length} days
+                  · {trip.days.length} {trip.days.length === 1 ? 'day' : 'days'}
                 </p>
               </div>
               <div className="actions">
@@ -911,9 +911,9 @@ export default function Home() {
                     </div>
                   )}
                   <p className="muted">
-                    Follows your stop order. Estimated driving time excludes visits and
-                    live traffic. Locations are sent to the routing provider when you
-                    calculate.
+                    Driving routes follow your stop order. Estimated driving time excludes
+                    visits and live traffic. Locations are sent to the routing provider
+                    when you calculate.
                   </p>
                   <p className="muted">
                     Routing by{' '}

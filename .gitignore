@@ -25,3 +25,5 @@ artifacts/
 
 # Isolated browser integration test output
 /frontend/.next-browser-tests/
+
+/frontend/.next-production-check-*/

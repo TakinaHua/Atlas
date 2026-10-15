@@ -6,7 +6,7 @@ The frontend and direct REST API share the same records. Existing Django data re
 
 Also completed: local U.S. city/state search and saved destination map centering. See [destination search](destination-search.md).
 
-Place search/geocoding and ordered road-route display are complete. The independent Pittsburgh walking-graph/Dijkstra demo is implemented. Next: final prototype verification. User accounts and hosted deployment need their own design before exposing this local app publicly.
+Place search/geocoding and ordered road-route display are complete. The independent Pittsburgh walking-graph/Dijkstra demo is implemented. Automated prototype acceptance now includes production API process restart/persistence and compiled asset loading. Next: user acceptance using [the walkthrough](prototype-acceptance.md). User accounts and hosted deployment need their own design before exposing this local app publicly.
 
 Place/address lookup is implemented through the Photon proxy at `/api/places/search`; selected results populate saved place coordinates. See [implementation and limits](place-search.md).
 

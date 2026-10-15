@@ -19,7 +19,8 @@
     "test": "npm test --workspace=atlas-backend && node --test tests/server.test.js && node --test archive/vanilla-frontend/tests/*.test.js",
     "test:browser": "playwright test",
     "check": "npm run typecheck --workspace=atlas-backend && npm run typecheck --workspace=@atlas/frontend && prettier --check frontend backend/server.js tests docs/architecture.md docs/backend-plan.md README.md package.json playwright.config.ts",
-    "format": "prettier --write frontend backend/server.js tests docs/architecture.md docs/backend-plan.md README.md package.json playwright.config.ts"
+    "format": "prettier --write frontend backend/server.js tests docs/architecture.md docs/backend-plan.md README.md package.json playwright.config.ts",
+    "test:production": "node tests/production-smoke.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.0",
