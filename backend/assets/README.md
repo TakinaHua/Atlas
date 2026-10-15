@@ -19,3 +19,7 @@ npm test
 ```
 
 Review the generated diff, update this snapshot summary, and run browser checks before committing. Stable GeoNames IDs identify selected locations. If a future snapshot removes an ID, editing/importing that selection prompts the user to select again rather than trust unrecognized coordinates.
+
+## Pittsburgh walking graph (separate OSM dataset)
+
+`pittsburgh-walking.json` contains 2,396 nodes and 5,740 directed edges for the local Dijkstra demonstration. It is © OpenStreetMap contributors, ODbL 1.0, not GeoNames/CC BY. See `pittsburgh-walking.LICENSE.md` and `../../docs/dijkstra-demo.md` for provenance, transformation, limitations and regeneration.

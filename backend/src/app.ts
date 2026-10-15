@@ -1,3 +1,4 @@
+import { walkingDemo } from './walking-demo.js';
 import { createRouting, routeInput } from './routing.js';
 import { createPlaceSearch, placeQuery } from './place-search.js';
 import { searchDestinations } from './destinations.js';
@@ -96,6 +97,7 @@ export function createApp(
     const results = await searchPlaces(placeQuery.parse(req.query));
     res.json({ results, attribution: '© OpenStreetMap contributors' });
   });
+  app.post('/api/routes/walking-demo', (req, res) => res.json(walkingDemo(req.body)));
   app.post('/api/routes', async (req, res) => {
     res.json(await calculateRoute(routeInput.parse(req.body)));
   });

@@ -7,7 +7,7 @@ import TripForm from '../components/TripForm';
 import PlaceForm from '../components/PlaceForm';
 import { itineraryDates } from '../lib/api';
 import { api } from '../lib/remote-api';
-import type { CalculatedRoute, Place, Trip } from '../lib/types';
+import type { CalculatedRoute, WalkingDemoRoute, Place, Trip } from '../lib/types';
 
 // Leaflet needs the browser DOM and must not run during server rendering.
 const TripMap = dynamic(() => import('../components/TripMap'), {
@@ -32,6 +32,7 @@ export default function Home() {
   const [date, setDate] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [route, setRoute] = useState<CalculatedRoute | null>(null);
+  const [demoRoute, setDemoRoute] = useState<WalkingDemoRoute | null>(null);
   const [routing, setRouting] = useState(false);
   const [routeError, setRouteError] = useState('');
   const routeController = useRef<AbortController | null>(null);
@@ -54,6 +55,7 @@ export default function Home() {
     setRouting(false);
     setRouteError('');
     setRoute(null);
+    setDemoRoute(null);
     const data = await api<{ trips: Trip[] }>('/trips');
     setTrips(data.trips);
   }, []);
@@ -84,9 +86,10 @@ export default function Home() {
     setRouting(false);
     setRouteError('');
     setRoute(null);
+    setDemoRoute(null);
   }
 
-  async function calculateDayRoute() {
+  async function calculateDayRoute(mode: 'driving' | 'demo' = 'driving') {
     if (
       !day ||
       day.places.length < 2 ||
@@ -99,20 +102,26 @@ export default function Home() {
     routeController.current = controller;
     setRouting(true);
     try {
-      const response = await fetch('/api/routes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          stops: day.places.map(({ latitude, longitude }) => ({ latitude, longitude })),
-        }),
-        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
-      });
+      const response = await fetch(
+        mode === 'demo' ? '/api/routes/walking-demo' : '/api/routes',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stops: day.places.map(({ latitude, longitude }) => ({ latitude, longitude })),
+          }),
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
+        },
+      );
       const result = await response.json();
       if (!response.ok)
         throw new Error(
           result.error?.message ?? 'Route calculation failed. Please try again.',
         );
-      if (generation === routeGeneration.current) setRoute(result);
+      if (generation === routeGeneration.current) {
+        if (mode === 'demo') setDemoRoute(result);
+        else setRoute(result);
+      }
     } catch (error) {
       if (generation === routeGeneration.current && !controller.signal.aborted)
         setRouteError(
@@ -355,6 +364,49 @@ export default function Home() {
                 </p>
                 <button disabled={busy} onClick={() => setEditor({ kind: 'trip' })}>
                   ＋ Plan a trip
+                </button>
+                <button
+                  className="secondary sample-button"
+                  disabled={busy}
+                  onClick={() => {
+                    const sample: Trip = {
+                      id: crypto.randomUUID(),
+                      revision: 1,
+                      name: 'Downtown walking demo',
+                      destination: 'Pittsburgh, Pennsylvania',
+                      startDate: '2026-10-14',
+                      endDate: '2026-10-14',
+                      days: [
+                        {
+                          date: '2026-10-14',
+                          places: [
+                            {
+                              id: crypto.randomUUID(),
+                              name: 'Gateway area',
+                              address: 'Downtown Pittsburgh',
+                              category: 'Sightseeing',
+                              notes: 'Example graph node; demo only.',
+                              latitude: 40.4420279,
+                              longitude: -80.0060824,
+                            },
+                            {
+                              id: crypto.randomUUID(),
+                              name: 'Market Square area',
+                              address: 'Downtown Pittsburgh',
+                              category: 'Sightseeing',
+                              notes: 'Example graph node; demo only.',
+                              latitude: 40.4410009,
+                              longitude: -80.002423,
+                            },
+                          ],
+                        },
+                      ],
+                    };
+                    setSampleTrip(sample);
+                    openTrip(sample);
+                  }}
+                >
+                  Explore walking demo
                 </button>
                 <button
                   className="secondary sample-button"
@@ -773,6 +825,91 @@ export default function Home() {
                       </button>
                     </div>
                   )}
+                  <details className="walking-demo">
+                    <summary>Shortest walking path · Pittsburgh demo</summary>
+                    <p>
+                      This local demonstration uses Atlas’s own Dijkstra algorithm on a
+                      small downtown street/path snapshot. Try Gateway and Market Square.
+                      It keeps your stop order.
+                    </p>
+                    <button
+                      disabled={
+                        busy ||
+                        routing ||
+                        !day ||
+                        day.places.length < 2 ||
+                        day.places.some(
+                          (p) => p.latitude === null || p.longitude === null,
+                        )
+                      }
+                      onClick={() => void calculateDayRoute('demo')}
+                    >
+                      Find shortest demo path
+                    </button>
+                    <p className="muted">
+                      Limited coverage; paths may be disconnected. Stops snap to the
+                      nearest node within 150 m. Distance excludes the gap from each stop
+                      to its snapped node. Access conditions, crossings, stairs and
+                      accessibility are not fully modeled: this is not navigation
+                      guidance.
+                    </p>
+                  </details>
+                  {demoRoute && (
+                    <div aria-label="Walking demo result">
+                      <p>
+                        <strong>
+                          {Math.round(demoRoute.distanceMeters)} m · shortest path in the
+                          demo graph
+                        </strong>
+                      </p>
+                      <p>
+                        Calculated locally by Dijkstra. Snapshot: {demoRoute.snapshotDate}
+                        .
+                      </p>
+                      <ol>
+                        {demoRoute.legs.map((leg, index) => (
+                          <li key={index}>
+                            {day?.places[index]?.name} → {day?.places[index + 1]?.name}:{' '}
+                            {Math.round(leg.distanceMeters)} m
+                          </li>
+                        ))}
+                      </ol>
+                      <p className="muted">
+                        Snap gaps:{' '}
+                        {demoRoute.snapped
+                          .map(
+                            (stop, index) =>
+                              `stop ${index + 1}: ${Math.round(stop.distanceMeters)} m`,
+                          )
+                          .join('; ')}
+                        .
+                      </p>
+                      <details>
+                        <summary>How this path was found</summary>
+                        <p>
+                          {demoRoute.graphNodes.toLocaleString()} nodes ·{' '}
+                          {demoRoute.graphEdges.toLocaleString()} directed edges ·{' '}
+                          {demoRoute.visitedNodes.toLocaleString()} node visits across all
+                          legs. Edge weights are segment lengths. Dijkstra chooses the
+                          lowest total distance between the snapped nodes; it does not
+                          reorder your stops.
+                        </p>
+                      </details>
+                      <p className="muted">
+                        Graph data:{' '}
+                        <a
+                          href="https://www.openstreetmap.org/copyright"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          © OpenStreetMap contributors · ODbL
+                        </a>
+                      </p>
+                      <button className="text-button" onClick={clearRoute}>
+                        Clear demo path
+                      </button>
+                    </div>
+                  )}
                   <p className="muted">
                     Follows your stop order. Estimated driving time excludes visits and
                     live traffic. Locations are sent to the routing provider when you
@@ -805,7 +942,7 @@ export default function Home() {
                 <TripMap
                   destinationLocation={trip.destinationLocation}
                   places={day?.places || []}
-                  route={route}
+                  route={route ?? demoRoute}
                   selectedId={selectedId}
                   onSelect={selectPlace}
                 />

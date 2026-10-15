@@ -6,10 +6,10 @@ The frontend and direct REST API share the same records. Existing Django data re
 
 Also completed: local U.S. city/state search and saved destination map centering. See [destination search](destination-search.md).
 
-Place search/geocoding and ordered road-route display are complete. Next: an independently tested graph/Dijkstra layer and final prototype verification. User accounts and hosted deployment need their own design before exposing this local app publicly.
+Place search/geocoding and ordered road-route display are complete. The independent Pittsburgh walking-graph/Dijkstra demo is implemented. Next: final prototype verification. User accounts and hosted deployment need their own design before exposing this local app publicly.
 
 Place/address lookup is implemented through the Photon proxy at `/api/places/search`; selected results populate saved place coordinates. See [implementation and limits](place-search.md).
 
 Stops can now move between itinerary days while preserving their details and coordinates. See [day-move testing](day-moves.md).
 
-Ordered driving routes are available through OSRM, with map geometry, distance, and estimated time. See [road-routing setup and tests](road-routing.md). Dijkstra integration remains separate future work.
+Ordered driving routes are available through OSRM, with map geometry, distance, and estimated time. See [road-routing setup and tests](road-routing.md). The independent Dijkstra walking demo is documented in [dijkstra-demo.md](dijkstra-demo.md).

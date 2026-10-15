@@ -14,13 +14,14 @@ export default function TripMap({
 }: {
   destinationLocation?: DestinationLocation | null;
   places: Place[];
-  route: CalculatedRoute | null;
+  route: Pick<CalculatedRoute, 'geometry'> | null;
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const overlays = useRef<L.LayerGroup | null>(null);
+  const contentBounds = useRef<L.LatLngBounds | null>(null);
   const [tileError, setTileError] = useState(false);
 
   useEffect(() => {
@@ -35,7 +36,11 @@ export default function TripMap({
       .addTo(instance);
     map.current = instance;
     overlays.current = L.layerGroup().addTo(instance);
-    const observer = new ResizeObserver(() => instance.invalidateSize());
+    const observer = new ResizeObserver(() => {
+      instance.invalidateSize();
+      if (contentBounds.current?.isValid())
+        instance.fitBounds(contentBounds.current, { padding: [40, 40], maxZoom: 14 });
+    });
     observer.observe(container.current);
     return () => {
       observer.disconnect();
@@ -75,6 +80,7 @@ export default function TripMap({
       );
       points.forEach((point) => bounds.extend(point));
     }
+    contentBounds.current = bounds;
     if (bounds.isValid())
       map.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
     else if (destinationLocation)

@@ -541,3 +541,63 @@ test('driving routes display ordered legs, invalidate on edits and ignore late r
   await expect(page.locator('.stops li')).toHaveCount(2);
   await expect(page.locator('.leaflet-overlay-pane path')).toHaveCount(0);
 });
+
+test('local Dijkstra walking demo displays a real graph path without saving the sample', async ({
+  page,
+  request,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Explore walking demo', exact: true }).click();
+  await page
+    .getByText('Shortest walking path · Pittsburgh demo', { exact: true })
+    .click();
+  await page
+    .getByRole('button', { name: 'Find shortest demo path', exact: true })
+    .click();
+  await expect(page.getByLabel('Walking demo result')).toContainText(
+    'Calculated locally by Dijkstra',
+  );
+  await expect(page.getByLabel('Walking demo result')).toContainText(
+    'Gateway area → Market Square area',
+  );
+  await expect(page.locator('.leaflet-overlay-pane path')).toHaveCount(1);
+  const { trips } = await (await request.get('/api/itineraries')).json();
+  expect(trips.map((trip: { id: string }) => trip.id).sort()).toEqual(
+    [...initialIds].sort(),
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+  ).toBe(true);
+  await expect
+    .poll(async () => {
+      const map = await page.locator('.leaflet-container').boundingBox();
+      const pins = await page.locator('.map-pin').all();
+      if (!map) return false;
+      for (const pin of pins) {
+        const box = await pin.boundingBox();
+        if (
+          !box ||
+          box.x < map.x ||
+          box.x + box.width > map.x + map.width ||
+          box.y < map.y ||
+          box.y + box.height > map.y + map.height
+        )
+          return false;
+      }
+      return true;
+    })
+    .toBe(true);
+  await page.screenshot({ path: 'test-results/walking-demo-mobile.png', fullPage: true });
+  await page.getByRole('button', { name: 'Move Market Square area up' }).click();
+  await expect(page.getByLabel('Walking demo result')).toHaveCount(0);
+  await expect(page.locator('.leaflet-overlay-pane path')).toHaveCount(0);
+  await page
+    .getByRole('button', { name: 'Find shortest demo path', exact: true })
+    .click();
+  await expect(page.getByLabel('Walking demo result')).toContainText(
+    'Market Square area → Gateway area',
+  );
+  await page.getByRole('button', { name: 'Clear demo path', exact: true }).click();
+  await expect(page.locator('.leaflet-overlay-pane path')).toHaveCount(0);
+});

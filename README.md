@@ -53,4 +53,6 @@ Place/address lookup is available in Add/Edit place through Photon, with automat
 
 Stops can now move between itinerary days while preserving their details and coordinates. See [day-move testing](docs/day-moves.md).
 
-Ordered driving routes are available through OSRM, with map geometry, distance, and estimated time. See [road-routing setup and tests](docs/road-routing.md). Dijkstra integration remains separate future work.
+Ordered driving routes are available through OSRM, with map geometry, distance, and estimated time. See [road-routing setup and tests](docs/road-routing.md). An independent, limited Pittsburgh walking-graph demonstration is also available.
+
+Choose **Explore walking demo** to try Atlas’s own Dijkstra implementation. See [algorithm, dataset and limitations](docs/dijkstra-demo.md).

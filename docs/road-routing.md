@@ -23,10 +23,8 @@ Routes are derived, not saved in SQLite or included in exports. Recalculate afte
 
 Verification: unit/API tests mock provider responses and cover request validation, normalization, caching/throttling, no-route errors and malformed/provider failures. Browser coverage includes route display, ordering, reorder invalidation, day changes during requests, and failure preservation. A separate live Pittsburgh request returned an 8,553.6 m / 769.3 s road route with 24 geometry points.
 
-## Dijkstra: next implementation, not yet active
+## Dijkstra: separate walking demo now available
 
-OSRM computes this road route. The preserved Django `backend/trips/routing.py` contains an older Dijkstra implementation, but the active TypeScript service does not call it. Running Dijkstra on an all-pairs shortest-travel-time matrix would largely repeat already-solved paths and does not establish an independent road-routing algorithm.
+OSRM computes this road route. See [the implemented walking graph demo](dijkstra-demo.md) for the active independent algorithm and its limited coverage. The preserved Django `backend/trips/routing.py` contains an older Dijkstra implementation, but the active TypeScript service does not call it. Running Dijkstra on an all-pairs shortest-travel-time matrix would largely repeat already-solved paths and does not establish an independent road-routing algorithm.
 
-Proposed meaningful demonstration: a bounded road-network graph for one demo region, with intersections as nodes and directed road segments as edges. Store a versioned, attributed OSM-derived extract; respect one-way direction, use nonnegative segment length in meters, and run our own Dijkstra between snapped demo endpoints. Render the chosen segments and compare with an expected known path. Explicitly label it a limited shortest-distance demonstration: driving access, turn restrictions, traffic, and full nationwide navigation need more than this graph. Connect consecutive required stops in their given order; choosing the best stop order is a different problem.
-
-Before implementation, choose the demo area/data extract and define supported access/turn rules. Test known shortest paths, unreachable nodes, equal-cost ties, zero/negative/invalid weights, and directionality. Keep this graph result and its distance distinct from OSRM's estimated driving route and duration.
+The implemented demo uses a bounded downtown Pittsburgh walking graph, with OSM nodes/segments and nonnegative length weights. Its own Dijkstra result is separate from OSRM driving estimates; see the linked implementation notes for tested behavior, access rules and limitations.

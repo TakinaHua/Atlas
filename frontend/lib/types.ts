@@ -41,3 +41,15 @@ export interface CalculatedRoute {
   profile: string;
   provider: string;
 }
+
+export interface WalkingDemoRoute {
+  geometry: { type: 'LineString'; coordinates: [number, number][] };
+  distanceMeters: number;
+  legs: { distanceMeters: number; nodeIds: string[] }[];
+  snapped: { nodeId: string; distanceMeters: number; coordinates: [number, number] }[];
+  visitedNodes: number;
+  graphNodes: number;
+  graphEdges: number;
+  snapshotDate: string;
+  algorithm: string;
+}
