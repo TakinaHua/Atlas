@@ -465,3 +465,79 @@ test('moving a place between days is atomic, preserves details and persists afte
   await expect(page.locator('.stops li')).toHaveCount(1);
   await expect(page.locator('.map-pin')).toHaveCount(1);
 });
+
+test('driving routes display ordered legs, invalidate on edits and ignore late responses after day changes', async ({
+  page,
+}) => {
+  await createTrip(page);
+  await expect(
+    page.getByRole('button', { name: 'Calculate driving route' }),
+  ).toBeDisabled();
+  await addPlace(page, 'Park', '40.44', '-80.01');
+  await addPlace(page, 'Museum', '40.45', '-79.95');
+  const result = {
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [-80.01, 40.44],
+        [-79.98, 40.47],
+        [-79.95, 40.45],
+      ],
+    },
+    distanceMeters: 5000,
+    durationSeconds: 600,
+    legs: [{ distanceMeters: 5000, durationSeconds: 600 }],
+    provider: 'OSRM',
+    profile: 'driving',
+  };
+  await page.route('**/api/routes', async (route) => {
+    expect(route.request().postDataJSON().stops).toEqual([
+      { latitude: 40.44, longitude: -80.01 },
+      { latitude: 40.45, longitude: -79.95 },
+    ]);
+    await route.fulfill({ json: result });
+  });
+  await page.getByRole('button', { name: 'Calculate driving route' }).click();
+  await expect(page.getByLabel('Driving route summary')).toContainText(
+    '3.1 miles · 10 min',
+  );
+  await expect(page.getByLabel('Driving route summary')).toContainText('Park → Museum');
+  await expect(page.locator('.leaflet-overlay-pane path')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Move Museum up' }).click();
+  await expect(page.getByLabel('Driving route summary')).toHaveCount(0);
+  await expect(page.locator('.leaflet-overlay-pane path')).toHaveCount(0);
+  await page.unroute('**/api/routes');
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let started!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  await page.route('**/api/routes', async (route) => {
+    started();
+    await gate;
+    await route.fulfill({ json: result }).catch(() => {});
+  });
+  await page.getByRole('button', { name: 'Calculate driving route' }).click();
+  await pending;
+  await page.getByRole('button', { name: /DAY 2/ }).click();
+  release();
+  await expect(page.getByLabel('Driving route summary')).toHaveCount(0);
+  await expect(page.locator('.leaflet-overlay-pane path')).toHaveCount(0);
+  await page.unroute('**/api/routes');
+  await page.route('**/api/routes', (route) =>
+    route.fulfill({
+      status: 422,
+      json: { error: { message: 'No driving route connects these stops.' } },
+    }),
+  );
+  await page.getByRole('button', { name: /DAY 1/ }).click();
+  await page.getByRole('button', { name: 'Calculate driving route' }).click();
+  await expect(
+    page.getByText('No driving route connects these stops.', { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('.stops li')).toHaveCount(2);
+  await expect(page.locator('.leaflet-overlay-pane path')).toHaveCount(0);
+});

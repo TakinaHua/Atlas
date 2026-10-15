@@ -37,9 +37,7 @@ export interface CalculatedRoute {
   geometry: { type: 'LineString'; coordinates: [number, number][] };
   distanceMeters: number;
   durationSeconds: number;
-  graphDurationSeconds: number;
-  pathIndices: number[];
-  algorithm: string;
+  legs: { distanceMeters: number; durationSeconds: number }[];
   profile: string;
   provider: string;
 }

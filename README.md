@@ -52,3 +52,5 @@ Optional settings are in `.env.example`. Express loads root `.env`; for a custom
 Place/address lookup is available in Add/Edit place through Photon, with automatic coordinates and manual fallback. See [place-search setup and testing](docs/place-search.md).
 
 Stops can now move between itinerary days while preserving their details and coordinates. See [day-move testing](docs/day-moves.md).
+
+Ordered driving routes are available through OSRM, with map geometry, distance, and estimated time. See [road-routing setup and tests](docs/road-routing.md). Dijkstra integration remains separate future work.

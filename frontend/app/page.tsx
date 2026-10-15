@@ -32,6 +32,9 @@ export default function Home() {
   const [date, setDate] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [route, setRoute] = useState<CalculatedRoute | null>(null);
+  const [routing, setRouting] = useState(false);
+  const [routeError, setRouteError] = useState('');
+  const routeController = useRef<AbortController | null>(null);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -47,6 +50,9 @@ export default function Home() {
 
   const refresh = useCallback(async () => {
     routeGeneration.current += 1;
+    routeController.current?.abort();
+    setRouting(false);
+    setRouteError('');
     setRoute(null);
     const data = await api<{ trips: Trip[] }>('/trips');
     setTrips(data.trips);
@@ -74,7 +80,49 @@ export default function Home() {
 
   function clearRoute() {
     routeGeneration.current += 1;
+    routeController.current?.abort();
+    setRouting(false);
+    setRouteError('');
     setRoute(null);
+  }
+
+  async function calculateDayRoute() {
+    if (
+      !day ||
+      day.places.length < 2 ||
+      day.places.some((p) => p.latitude === null || p.longitude === null)
+    )
+      return;
+    clearRoute();
+    const generation = routeGeneration.current;
+    const controller = new AbortController();
+    routeController.current = controller;
+    setRouting(true);
+    try {
+      const response = await fetch('/api/routes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stops: day.places.map(({ latitude, longitude }) => ({ latitude, longitude })),
+        }),
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
+      });
+      const result = await response.json();
+      if (!response.ok)
+        throw new Error(
+          result.error?.message ?? 'Route calculation failed. Please try again.',
+        );
+      if (generation === routeGeneration.current) setRoute(result);
+    } catch (error) {
+      if (generation === routeGeneration.current && !controller.signal.aborted)
+        setRouteError(
+          error instanceof Error && error.name !== 'TimeoutError'
+            ? error.message
+            : 'Routing timed out. Please try again.',
+        );
+    } finally {
+      if (generation === routeGeneration.current) setRouting(false);
+    }
   }
 
   function openTrip(next: Trip) {
@@ -274,6 +322,7 @@ export default function Home() {
               onClick={() =>
                 void run(async () => {
                   await refresh();
+                  clearRoute();
                   setTripId(null);
                 })
               }
@@ -680,9 +729,68 @@ export default function Home() {
                   ))}
                 </ol>
                 <div className="route-box">
+                  <button
+                    disabled={
+                      busy ||
+                      routing ||
+                      !day ||
+                      day.places.length < 2 ||
+                      day.places.some((p) => p.latitude === null || p.longitude === null)
+                    }
+                    onClick={() => void calculateDayRoute()}
+                  >
+                    {routing ? 'Calculating route…' : 'Calculate driving route'}
+                  </button>
+                  {!day || day.places.length < 2 ? (
+                    <p className="muted">Add at least two stops to calculate a route.</p>
+                  ) : day.places.some(
+                      (p) => p.latitude === null || p.longitude === null,
+                    ) ? (
+                    <p className="muted">
+                      Select a map location for every stop before calculating.
+                    </p>
+                  ) : null}
+                  {routeError && <p role="alert">{routeError}</p>}
+                  {route && (
+                    <div aria-label="Driving route summary">
+                      <p>
+                        <strong>
+                          {(route.distanceMeters / 1609.344).toFixed(1)} miles ·{' '}
+                          {Math.ceil(route.durationSeconds / 60)} min driving
+                        </strong>
+                      </p>
+                      <ol>
+                        {route.legs.map((leg, index) => (
+                          <li key={index}>
+                            {day?.places[index]?.name} → {day?.places[index + 1]?.name}:{' '}
+                            {(leg.distanceMeters / 1609.344).toFixed(1)} mi ·{' '}
+                            {Math.ceil(leg.durationSeconds / 60)} min
+                          </li>
+                        ))}
+                      </ol>
+                      <button className="text-button" onClick={clearRoute}>
+                        Clear route
+                      </button>
+                    </div>
+                  )}
                   <p className="muted">
-                    Arrange stops in the order you want to visit. Driving routes and smart
-                    suggestions are planned for a later update.
+                    Follows your stop order. Estimated driving time excludes visits and
+                    live traffic. Locations are sent to the routing provider when you
+                    calculate.
+                  </p>
+                  <p className="muted">
+                    Routing by{' '}
+                    <a href="https://project-osrm.org/" target="_blank" rel="noreferrer">
+                      OSRM
+                    </a>{' '}
+                    ·{' '}
+                    <a
+                      href="https://www.openstreetmap.org/copyright"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      © OpenStreetMap contributors
+                    </a>
                   </p>
                 </div>
               </section>

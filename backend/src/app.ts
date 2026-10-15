@@ -1,3 +1,4 @@
+import { createRouting, routeInput } from './routing.js';
 import { createPlaceSearch, placeQuery } from './place-search.js';
 import { searchDestinations } from './destinations.js';
 import { itineraryRouter } from './itineraries.js';
@@ -59,6 +60,7 @@ export function createApp(
 ) {
   const app = express();
   const searchPlaces = createPlaceSearch();
+  const calculateRoute = createRouting();
   app.disable('x-powered-by');
   app.use(
     cors({
@@ -93,6 +95,9 @@ export function createApp(
   app.get('/api/places/search', async (req, res) => {
     const results = await searchPlaces(placeQuery.parse(req.query));
     res.json({ results, attribution: '© OpenStreetMap contributors' });
+  });
+  app.post('/api/routes', async (req, res) => {
+    res.json(await calculateRoute(routeInput.parse(req.body)));
   });
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
   app.get('/api/trips', (_req, res) => res.json(store.list()));
