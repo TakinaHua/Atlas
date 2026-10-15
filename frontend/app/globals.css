@@ -563,3 +563,15 @@ footer span {
   white-space: normal;
   margin-bottom: 6px;
 }
+
+.move-day {
+  display: block;
+  font-size: 12px;
+  margin: 12px 0;
+}
+.move-day select {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  margin-top: 4px;
+}

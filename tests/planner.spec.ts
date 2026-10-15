@@ -417,3 +417,51 @@ test('place search selection saves a map pin; changing address clears it; failur
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('.stops li')).toHaveCount(2);
 });
+
+test('moving a place between days is atomic, preserves details and persists after reopening', async ({
+  page,
+  request,
+}) => {
+  await createTrip(page);
+  await addPlace(page, 'Park to move', '40.44', '-80.01');
+  const { trips: before } = await (await request.get('/api/itineraries')).json();
+  const original = before.find((trip: { id: string }) => !initialIds.has(trip.id));
+  const savedPlace = original.days[0].places[0];
+  await page.getByRole('button', { name: /DAY 2/ }).click();
+  await addPlace(page, 'Existing stop', '', '');
+  await page.getByRole('button', { name: /DAY 1/ }).click();
+  await page.route('**/api/itineraries/*', (route) =>
+    route.request().method() === 'PUT'
+      ? route.fulfill({
+          status: 503,
+          json: { error: { message: 'Move could not be saved' } },
+        })
+      : route.continue(),
+  );
+  await page.getByLabel('Move Park to move to another day').selectOption('2026-10-11');
+  await expect(page.locator('.error[role=alert]')).toContainText(
+    'Atlas could not complete this request',
+  );
+  await expect(page.locator('.stops li')).toContainText('Park to move');
+  await page.getByRole('button', { name: /DAY 2/ }).click();
+  await expect(page.locator('.stops li')).toHaveCount(1);
+  await page.getByRole('button', { name: /DAY 1/ }).click();
+  await page.unroute('**/api/itineraries/*');
+  await page.getByLabel('Move Park to move to another day').selectOption('2026-10-11');
+  await expect(page.locator('.stops li')).toHaveCount(2);
+  await expect(page.locator('.stops li').last()).toContainText('Park to move');
+  await expect(page.locator('.stops li.selected')).toContainText('Park to move');
+  await expect(page.locator('.map-pin')).toHaveCount(1);
+  const { trips: after } = await (await request.get('/api/itineraries')).json();
+  const moved = after.find((trip: { id: string }) => trip.id === original.id);
+  expect(moved.days[0].places).toEqual([]);
+  expect(moved.days[1].places[1]).toEqual(savedPlace);
+  await page.reload();
+  await page.getByRole('button', { name: 'Open itinerary' }).click();
+  await expect(page.locator('.stops li')).toHaveCount(0);
+  await page.getByRole('button', { name: /DAY 2/ }).click();
+  await expect(page.locator('.stops li')).toHaveCount(2);
+  await page.getByLabel('Move Park to move to another day').selectOption('2026-10-10');
+  await expect(page.locator('.stops li')).toHaveCount(1);
+  await expect(page.locator('.map-pin')).toHaveCount(1);
+});

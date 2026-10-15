@@ -9,3 +9,5 @@ Also completed: local U.S. city/state search and saved destination map centering
 Next: place search/geocoding, road-route provider integration, an independently tested graph/Dijkstra layer, and calculated route display. User accounts and hosted deployment need their own design before exposing this local app publicly.
 
 Place/address lookup is implemented through the Photon proxy at `/api/places/search`; selected results populate saved place coordinates. See [implementation and limits](place-search.md).
+
+Stops can now move between itinerary days while preserving their details and coordinates. See [day-move testing](day-moves.md).

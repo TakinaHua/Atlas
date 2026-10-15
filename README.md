@@ -50,3 +50,5 @@ Browser tests use installed Google Chrome and automatically launch an isolated a
 Optional settings are in `.env.example`. Express loads root `.env`; for a custom API origin export `ATLAS_API_URL` in the shell before starting Next.
 
 Place/address lookup is available in Add/Edit place through Photon, with automatic coordinates and manual fallback. See [place-search setup and testing](docs/place-search.md).
+
+Stops can now move between itinerary days while preserving their details and coordinates. See [day-move testing](docs/day-moves.md).

@@ -190,6 +190,26 @@ export default function Home() {
     });
   }
 
+  async function movePlace(place: Place, targetDate: string) {
+    if (!trip || !day || targetDate === date) return;
+    const target = trip.days.find((item) => item.date === targetDate);
+    if (!target) throw new Error('That day is no longer available. Reopen the trip.');
+    if (target.places.length >= 30) throw new Error('That day already has 30 places.');
+    await saveTrip({
+      ...trip,
+      days: trip.days.map((item) =>
+        item.date === date
+          ? { ...item, places: item.places.filter((item) => item.id !== place.id) }
+          : item.date === targetDate
+            ? { ...item, places: [...item.places, place] }
+            : item,
+      ),
+    });
+    setDate(targetDate);
+    setSelectedId(place.id);
+    setNotice(`${place.name} moved to ${displayDate(targetDate)}.`);
+  }
+
   async function importTrips(raw: string) {
     const parsed = JSON.parse(raw);
     const result = await api<{ imported: number; skipped: number }>(
@@ -519,6 +539,7 @@ export default function Home() {
                 <button
                   className={date === item.date ? 'active' : 'secondary'}
                   key={item.date}
+                  disabled={busy}
                   onClick={() => {
                     clearRoute();
                     setDate(item.date);
@@ -562,8 +583,40 @@ export default function Home() {
                       {place.notes && <p className="notes">{place.notes}</p>}
                       {place.latitude === null && (
                         <p className="muted">
-                          Add coordinates to show this place on the map
+                          Edit this place and select a search result to add a map pin
                         </p>
+                      )}
+                      {trip.days.length > 1 && (
+                        <label className="move-day">
+                          Move to another day
+                          <select
+                            aria-label={`Move ${place.name} to another day`}
+                            value=""
+                            disabled={busy}
+                            onChange={(event) => {
+                              const targetDate = event.target.value;
+                              if (targetDate)
+                                void run(() => movePlace(place, targetDate));
+                            }}
+                          >
+                            <option value="" disabled>
+                              Choose a day…
+                            </option>
+                            {trip.days.map(
+                              (target, dayIndex) =>
+                                target.date !== date && (
+                                  <option
+                                    key={target.date}
+                                    value={target.date}
+                                    disabled={target.places.length >= 30}
+                                  >
+                                    Day {dayIndex + 1} · {displayDate(target.date)}
+                                    {target.places.length >= 30 ? ' (full)' : ''}
+                                  </option>
+                                ),
+                            )}
+                          </select>
+                        </label>
                       )}
                       <div className="actions">
                         <button
