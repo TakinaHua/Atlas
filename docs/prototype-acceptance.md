@@ -4,6 +4,8 @@ Status: implementation is ready for user acceptance testing. This is a local pro
 
 ## Included
 
+- Redesigned responsive frontend: photo-led discovery, saved-trip search, compact stop rows, category labels, day counts, linked selection, and native editing dialogs. See the [frontend guide](frontend.md) and [design rules](../DESIGN.md).
+
 - Create/edit/delete trips and dates; U.S. city/state suggestions and destination map centering.
 - Search names/addresses through Photon; confirm a result and save coordinates automatically; manual fallback.
 - Add/edit/remove/reorder places, move between days, retain notes/categories/coordinates, and select map pins.
@@ -41,13 +43,14 @@ The production test deliberately does not use or modify `backend/data/atlas.sqli
 7. Stop the development process with Ctrl+C, start it again, and reopen the trip. Names, dates, stops and notes should remain; calculated routes must be requested again.
 8. In another tab, edit/save the same trip. A stale save from the first tab should show a conflict; reload rather than overwrite newer data.
 9. Return to the dashboard and choose **Explore walking demo**. Open **Shortest walking path · Pittsburgh demo**, then **Find shortest demo path**. Check the 424-meter example, map line and expanded search statistics. The sample is unsaved unless you choose Add to my trips.
-10. Check a narrow/mobile window. Pin/path bounds should refit. If tiles fail, editing still works and route coordinates remain; restore internet for the basemap.
+10. On the dashboard, filter trips by name and destination, try a query with no matches, and use **Clear search**. Confirm the saved trip count and exported backup still include all trips. Check a narrow/mobile window. Pin/path bounds should refit. If tiles fail, editing still works and route coordinates remain; restore internet for the basemap.
 11. Delete only your disposable review trip when finished. Record anything unexpected with the action, expected behavior and actual result.
 
 ## Known limits and deferred scope
 
 - No accounts, authentication, multi-user ownership, or public production hosting. Use locally.
 - No automatic best-stop-order optimization, visit scheduling, budgets, or AI features. An Unscheduled list and visit-time controls remain optional future decisions.
+- Destination photos are curated for Oʻahu/Honolulu and Pittsburgh; other destinations receive a labeled Atlas fallback.
 - GeoNames city search omits many small towns and territories. Photon coverage varies; confirm results.
 - Public Photon/OSRM services can throttle or fail and require internet. They are not production service guarantees. Driving estimates exclude live traffic/visits.
 - The custom Dijkstra graph covers a small Pittsburgh area only. It is a walking-distance demonstration with incomplete access modeling, not navigation guidance or a national custom driving engine. Snap gaps are excluded from graph distance.

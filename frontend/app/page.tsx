@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import DestinationPhoto from '../components/DestinationPhoto';
 import EditorDialog from '../components/EditorDialog';
 import TripForm from '../components/TripForm';
 import PlaceForm from '../components/PlaceForm';
@@ -26,6 +27,7 @@ function displayDate(date: string, includeYear = false) {
 }
 
 export default function Home() {
+  const [tripSearch, setTripSearch] = useState('');
   const [trips, setTrips] = useState<Trip[]>([]);
   const [sampleTrip, setSampleTrip] = useState<Trip | null>(null);
   const [tripId, setTripId] = useState<string | null>(null);
@@ -307,11 +309,17 @@ export default function Home() {
 
   return (
     <>
+      <a className="skip-link" href="#main">
+        Skip to content
+      </a>
       <header className="topbar">
         <a className="brand" href="/">
-          Atlas<span>✳</span>
+          <span aria-hidden="true" className="brand-mark">
+            ↗
+          </span>
+          Atlas
         </a>
-        <span>A LITTLE LESS RUSH. A LOT MORE WORLD.</span>
+        <span className="brand-tagline">A little less rush. A lot more world.</span>
         <button
           className="secondary"
           onClick={() => {
@@ -322,7 +330,7 @@ export default function Home() {
           My trips
         </button>
       </header>
-      <main>
+      <main id="main">
         {error && (
           <div className="error" role="alert">
             {error}{' '}
@@ -346,128 +354,149 @@ export default function Home() {
           </p>
         )}
         {loading ? (
-          <p role="status">Opening your travel journal…</p>
+          <div className="loading-state" role="status">
+            <span className="loading-dot" />
+            Opening your travel journal…
+          </div>
         ) : !trip ? (
           <>
             <section className="hero">
               <div>
-                <p className="eyebrow">MAKE ROOM FOR THE JOURNEY</p>
+                <p className="eyebrow">YOUR NEXT ADVENTURE, ALL IN ONE PLACE</p>
                 <h1>
-                  Good trips start
-                  <br />
-                  with a little curiosity.
+                  A little planning.
+                  <br />A world of possibility.
                 </h1>
                 <p>
-                  Collect the places. Shape your days.
+                  Save the places you love. Bring your days together.
                   <br />
-                  Find your own way there.
+                  Leave a little room for the unexpected.
                 </p>
                 <button disabled={busy} onClick={() => setEditor({ kind: 'trip' })}>
                   ＋ Plan a trip
                 </button>
-                <button
-                  className="secondary sample-button"
-                  disabled={busy}
-                  onClick={() => {
-                    const sample: Trip = {
-                      id: crypto.randomUUID(),
-                      revision: 1,
-                      name: 'Downtown walking demo',
-                      destination: 'Pittsburgh, Pennsylvania',
-                      startDate: '2026-10-14',
-                      endDate: '2026-10-14',
-                      days: [
-                        {
-                          date: '2026-10-14',
-                          places: [
-                            {
-                              id: crypto.randomUUID(),
-                              name: 'Gateway area',
-                              address: 'Downtown Pittsburgh',
-                              category: 'Sightseeing',
-                              notes: 'Example graph node; demo only.',
-                              latitude: 40.4420279,
-                              longitude: -80.0060824,
-                            },
-                            {
-                              id: crypto.randomUUID(),
-                              name: 'Market Square area',
-                              address: 'Downtown Pittsburgh',
-                              category: 'Sightseeing',
-                              notes: 'Example graph node; demo only.',
-                              latitude: 40.4410009,
-                              longitude: -80.002423,
-                            },
-                          ],
-                        },
-                      ],
-                    };
-                    setSampleTrip(sample);
-                    openTrip(sample);
-                  }}
-                >
-                  Explore walking demo
-                </button>
-                <button
-                  className="secondary sample-button"
-                  disabled={busy}
-                  onClick={() =>
-                    void run(async () => {
+              </div>
+              <div className="hero-photo">
+                <DestinationPhoto destination="Oʻahu" eager />
+                <div className="photo-caption">
+                  <span>ROOM TO WANDER</span>
+                  <strong>
+                    Somewhere between
+                    <br />a plan and a possibility.
+                  </strong>
+                  <small>Waikīkī, Oʻahu</small>
+                </div>
+              </div>
+            </section>
+            <section className="discovery" aria-label="Explore Atlas">
+              <article>
+                <DestinationPhoto destination="Oʻahu" />
+                <div>
+                  <p className="eyebrow">A LITTLE INSPIRATION</p>
+                  <h3>An Oʻahu state of mind.</h3>
+                  <p>Try an editable Oʻahu itinerary.</p>{' '}
+                  <button
+                    className="secondary sample-button"
+                    disabled={busy}
+                    onClick={() =>
+                      void run(async () => {
+                        const sample: Trip = {
+                          id: crypto.randomUUID(),
+                          revision: 1,
+                          name: 'A little aloha',
+                          destination: 'Oʻahu, Hawaii',
+                          startDate: '2026-11-14',
+                          endDate: '2026-11-16',
+                          days: itineraryDates('2026-11-14', '2026-11-16').map(
+                            (date, index) => ({
+                              date,
+                              places:
+                                index === 0
+                                  ? [
+                                      {
+                                        id: crypto.randomUUID(),
+                                        name: 'Waikīkī Beach',
+                                        address: 'Honolulu, Oʻahu',
+                                        category: 'Nature',
+                                        notes: 'A slow start by the ocean.',
+                                        latitude: 21.2767,
+                                        longitude: -157.8275,
+                                      },
+                                      {
+                                        id: crypto.randomUUID(),
+                                        name: 'Diamond Head',
+                                        address: 'Honolulu, Oʻahu',
+                                        category: 'Nature',
+                                        notes:
+                                          'Sample stop — check access and reservations before traveling.',
+                                        latitude: 21.262,
+                                        longitude: -157.805,
+                                      },
+                                    ]
+                                  : [],
+                            }),
+                          ),
+                        };
+                        setSampleTrip(sample);
+                        openTrip(sample);
+                      })
+                    }
+                  >
+                    Explore a sample trip →
+                  </button>
+                </div>
+              </article>
+              <article>
+                <DestinationPhoto destination="Pittsburgh" />
+                <div>
+                  <p className="eyebrow">TAKE THE SCENIC ROUTE</p>
+                  <h3>Pittsburgh, on foot.</h3>
+                  <p>Explore the downtown walking demo.</p>{' '}
+                  <button
+                    className="secondary sample-button"
+                    disabled={busy}
+                    onClick={() => {
                       const sample: Trip = {
                         id: crypto.randomUUID(),
                         revision: 1,
-                        name: 'A little aloha',
-                        destination: 'Oʻahu, Hawaii',
-                        startDate: '2026-11-14',
-                        endDate: '2026-11-16',
-                        days: itineraryDates('2026-11-14', '2026-11-16').map(
-                          (date, index) => ({
-                            date,
-                            places:
-                              index === 0
-                                ? [
-                                    {
-                                      id: crypto.randomUUID(),
-                                      name: 'Waikīkī Beach',
-                                      address: 'Honolulu, Oʻahu',
-                                      category: 'Nature',
-                                      notes: 'A slow start by the ocean.',
-                                      latitude: 21.2767,
-                                      longitude: -157.8275,
-                                    },
-                                    {
-                                      id: crypto.randomUUID(),
-                                      name: 'Diamond Head',
-                                      address: 'Honolulu, Oʻahu',
-                                      category: 'Nature',
-                                      notes:
-                                        'Sample stop — check access and reservations before traveling.',
-                                      latitude: 21.262,
-                                      longitude: -157.805,
-                                    },
-                                  ]
-                                : [],
-                          }),
-                        ),
+                        name: 'Downtown walking demo',
+                        destination: 'Pittsburgh, Pennsylvania',
+                        startDate: '2026-10-14',
+                        endDate: '2026-10-14',
+                        days: [
+                          {
+                            date: '2026-10-14',
+                            places: [
+                              {
+                                id: crypto.randomUUID(),
+                                name: 'Gateway area',
+                                address: 'Downtown Pittsburgh',
+                                category: 'Sightseeing',
+                                notes: 'Example graph node; demo only.',
+                                latitude: 40.4420279,
+                                longitude: -80.0060824,
+                              },
+                              {
+                                id: crypto.randomUUID(),
+                                name: 'Market Square area',
+                                address: 'Downtown Pittsburgh',
+                                category: 'Sightseeing',
+                                notes: 'Example graph node; demo only.',
+                                latitude: 40.4410009,
+                                longitude: -80.002423,
+                              },
+                            ],
+                          },
+                        ],
                       };
                       setSampleTrip(sample);
                       openTrip(sample);
-                    })
-                  }
-                >
-                  Explore a sample trip →
-                </button>
-              </div>
-              <div className="hero-art" aria-hidden="true">
-                <span>
-                  THE WORLD
-                  <br />
-                  IS STILL
-                  <br />
-                  <em>wide open.</em>
-                </span>
-                <div className="orbit" />
-              </div>
+                    }}
+                  >
+                    Explore walking demo
+                  </button>
+                </div>
+              </article>
             </section>
             <section className="section-heading">
               <div>
@@ -478,37 +507,68 @@ export default function Home() {
                 {trips.length} {trips.length === 1 ? 'trip' : 'trips'}
               </span>
             </section>
+            <label className="trip-search">
+              <span>Search your trips</span>
+              <input
+                type="search"
+                placeholder="Find a trip or destination"
+                value={tripSearch}
+                onChange={(event) => setTripSearch(event.target.value)}
+              />
+            </label>
             <div className="trip-grid">
-              {trips.map((item, index) => (
-                <article className="trip-card" key={item.id}>
-                  <div className={`card-art shade-${index % 3}`}>
-                    <span>0{index + 1}</span>
-                    <span>↗</span>
-                  </div>
-                  <div className="card-body">
-                    <p className="eyebrow">{item.destination}</p>
-                    <h3>{item.name}</h3>
-                    <p>
-                      {displayDate(item.startDate, true)} —{' '}
-                      {displayDate(item.endDate, true)}
-                    </p>
-                    <div className="actions">
-                      <button className="secondary" onClick={() => openTrip(item)}>
-                        Open itinerary →
-                      </button>
-                      <button
-                        className="danger"
-                        disabled={busy}
-                        onClick={() => deleteTrip(item)}
-                        aria-label={`Delete ${item.name}`}
-                      >
-                        Delete trip
-                      </button>
+              {trips
+                .filter((item) =>
+                  `${item.name} ${item.destination}`
+                    .toLocaleLowerCase()
+                    .includes(tripSearch.toLocaleLowerCase()),
+                )
+                .map((item) => (
+                  <article className="trip-card" key={item.id}>
+                    <div className="card-art">
+                      <DestinationPhoto destination={item.destination} />
+                      <span className="photo-badge">
+                        {item.days.length} {item.days.length === 1 ? 'day' : 'days'} to
+                        explore
+                      </span>
                     </div>
-                  </div>
-                </article>
-              ))}
+                    <div className="card-body">
+                      <p className="eyebrow">{item.destination}</p>
+                      <h3>{item.name}</h3>
+                      <p>
+                        {displayDate(item.startDate, true)} —{' '}
+                        {displayDate(item.endDate, true)}
+                      </p>
+                      <div className="actions">
+                        <button className="secondary" onClick={() => openTrip(item)}>
+                          Open itinerary →
+                        </button>
+                        <button
+                          className="danger"
+                          disabled={busy}
+                          onClick={() => deleteTrip(item)}
+                          aria-label={`Delete ${item.name}`}
+                        >
+                          Delete trip
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
             </div>
+            {trips.length > 0 &&
+              !trips.some((item) =>
+                `${item.name} ${item.destination}`
+                  .toLocaleLowerCase()
+                  .includes(tripSearch.toLocaleLowerCase()),
+              ) && (
+                <div className="empty">
+                  No trips match “{tripSearch}”.{' '}
+                  <button className="text-button" onClick={() => setTripSearch('')}>
+                    Clear search
+                  </button>
+                </div>
+              )}
             {!trips.length && (
               <div className="empty">
                 Your next adventure belongs here. Start with a name and a few dates.
@@ -587,7 +647,8 @@ export default function Home() {
             >
               ← All trips
             </button>
-            <div className="section-heading">
+            <div className="trip-overview">
+              <DestinationPhoto destination={trip.destination} />
               <div>
                 <p className="eyebrow">{trip.destination}</p>
                 <h1>{trip.name}</h1>
@@ -630,7 +691,7 @@ export default function Home() {
               </div>
             </div>
             {isSample && (
-              <p className="muted">
+              <p className="sample-notice">
                 Explore and edit this sample freely. Choose “Add to my trips” to keep it
                 in Trips in the future.
               </p>
@@ -639,6 +700,7 @@ export default function Home() {
               {trip.days.map((item, index) => (
                 <button
                   className={date === item.date ? 'active' : 'secondary'}
+                  aria-current={date === item.date ? 'date' : undefined}
                   key={item.date}
                   disabled={busy}
                   onClick={() => {
@@ -649,13 +711,19 @@ export default function Home() {
                 >
                   <small>DAY {index + 1}</small>
                   {displayDate(item.date)}
+                  <span className="day-count">{item.places.length} stops</span>
                 </button>
               ))}
             </nav>
             <div className="planner">
               <section className="itinerary">
                 <div className="section-heading">
-                  <h2>A day to discover</h2>
+                  <div>
+                    <p className="eyebrow">
+                      YOUR ITINERARY · {day?.places.length || 0} STOPS
+                    </p>
+                    <h2>A day to discover</h2>
+                  </div>
                   <button
                     disabled={busy || !day || day.places.length >= 30}
                     onClick={() => setEditor({ kind: 'place' })}
@@ -674,108 +742,115 @@ export default function Home() {
                     >
                       <button
                         className="stop-title"
+                        aria-pressed={selectedId === place.id}
                         onClick={() => setSelectedId(place.id)}
                       >
                         <span className="stop-number">{index + 1}</span>
                         <strong>{place.name}</strong>
                       </button>
-                      <p className="eyebrow">{place.category}</p>
-                      {place.address && <p>{place.address}</p>}
+                      <div className="stop-meta">
+                        <p className="category" data-category={place.category}>
+                          {place.category || 'Uncategorized'}
+                        </p>
+                        {place.address && <p>{place.address}</p>}
+                      </div>
                       {place.notes && <p className="notes">{place.notes}</p>}
                       {place.latitude === null && (
                         <p className="muted">
                           Edit this place and select a search result to add a map pin
                         </p>
                       )}
-                      {trip.days.length > 1 && (
-                        <label className="move-day">
-                          Move to another day
-                          <select
-                            aria-label={`Move ${place.name} to another day`}
-                            value=""
+                      <div className="stop-tools">
+                        {trip.days.length > 1 && (
+                          <label className="move-day">
+                            Move to another day
+                            <select
+                              aria-label={`Move ${place.name} to another day`}
+                              value=""
+                              disabled={busy}
+                              onChange={(event) => {
+                                const targetDate = event.target.value;
+                                if (targetDate)
+                                  void run(() => movePlace(place, targetDate));
+                              }}
+                            >
+                              <option value="" disabled>
+                                Choose a day…
+                              </option>
+                              {trip.days.map(
+                                (target, dayIndex) =>
+                                  target.date !== date && (
+                                    <option
+                                      key={target.date}
+                                      value={target.date}
+                                      disabled={target.places.length >= 30}
+                                    >
+                                      Day {dayIndex + 1} · {displayDate(target.date)}
+                                      {target.places.length >= 30 ? ' (full)' : ''}
+                                    </option>
+                                  ),
+                              )}
+                            </select>
+                          </label>
+                        )}
+                        <div className="actions">
+                          <button
+                            className="text-button"
                             disabled={busy}
-                            onChange={(event) => {
-                              const targetDate = event.target.value;
-                              if (targetDate)
-                                void run(() => movePlace(place, targetDate));
+                            onClick={() => setEditor({ kind: 'place', place })}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="text-button"
+                            aria-label={`Move ${place.name} up`}
+                            disabled={busy || index === 0}
+                            onClick={() =>
+                              void run(async () => {
+                                const places = [...day.places];
+                                [places[index - 1], places[index]] = [
+                                  places[index],
+                                  places[index - 1],
+                                ];
+                                await changePlaces(places);
+                              })
+                            }
+                          >
+                            ↑
+                          </button>
+                          <button
+                            className="text-button"
+                            aria-label={`Move ${place.name} down`}
+                            disabled={busy || index === day.places.length - 1}
+                            onClick={() =>
+                              void run(async () => {
+                                const places = [...day.places];
+                                [places[index + 1], places[index]] = [
+                                  places[index],
+                                  places[index + 1],
+                                ];
+                                await changePlaces(places);
+                              })
+                            }
+                          >
+                            ↓
+                          </button>
+                          <button
+                            className="text-button"
+                            disabled={busy}
+                            onClick={() => {
+                              if (window.confirm(`Remove ${place.name}?`))
+                                void run(async () => {
+                                  await changePlaces(
+                                    day.places.filter((item) => item.id !== place.id),
+                                  );
+                                  setSelectedId(null);
+                                });
                             }}
                           >
-                            <option value="" disabled>
-                              Choose a day…
-                            </option>
-                            {trip.days.map(
-                              (target, dayIndex) =>
-                                target.date !== date && (
-                                  <option
-                                    key={target.date}
-                                    value={target.date}
-                                    disabled={target.places.length >= 30}
-                                  >
-                                    Day {dayIndex + 1} · {displayDate(target.date)}
-                                    {target.places.length >= 30 ? ' (full)' : ''}
-                                  </option>
-                                ),
-                            )}
-                          </select>
-                        </label>
-                      )}
-                      <div className="actions">
-                        <button
-                          className="text-button"
-                          disabled={busy}
-                          onClick={() => setEditor({ kind: 'place', place })}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="text-button"
-                          aria-label={`Move ${place.name} up`}
-                          disabled={busy || index === 0}
-                          onClick={() =>
-                            void run(async () => {
-                              const places = [...day.places];
-                              [places[index - 1], places[index]] = [
-                                places[index],
-                                places[index - 1],
-                              ];
-                              await changePlaces(places);
-                            })
-                          }
-                        >
-                          ↑
-                        </button>
-                        <button
-                          className="text-button"
-                          aria-label={`Move ${place.name} down`}
-                          disabled={busy || index === day.places.length - 1}
-                          onClick={() =>
-                            void run(async () => {
-                              const places = [...day.places];
-                              [places[index + 1], places[index]] = [
-                                places[index],
-                                places[index + 1],
-                              ];
-                              await changePlaces(places);
-                            })
-                          }
-                        >
-                          ↓
-                        </button>
-                        <button
-                          className="text-button"
-                          disabled={busy}
-                          onClick={() => {
-                            if (window.confirm(`Remove ${place.name}?`))
-                              void run(async () => {
-                                await changePlaces(
-                                  day.places.filter((item) => item.id !== place.id),
-                                );
-                                setSelectedId(null);
-                              });
-                          }}
-                        >
-                          Remove
-                        </button>
+                            Remove
+                          </button>
+                        </div>
                       </div>
                     </li>
                   ))}
@@ -802,9 +877,13 @@ export default function Home() {
                       Select a map location for every stop before calculating.
                     </p>
                   ) : null}
-                  {routeError && <p role="alert">{routeError}</p>}
+                  {routeError && (
+                    <p className="error" role="alert">
+                      {routeError}
+                    </p>
+                  )}
                   {route && (
-                    <div aria-label="Driving route summary">
+                    <div className="route-summary" aria-label="Driving route summary">
                       <p>
                         <strong>
                           {(route.distanceMeters / 1609.344).toFixed(1)} miles ·{' '}
@@ -934,10 +1013,13 @@ export default function Home() {
               <section className="map-panel">
                 <div className="section-heading">
                   <div>
-                    <p className="eyebrow">A DIFFERENT PERSPECTIVE</p>
+                    <p className="eyebrow">FOLLOW YOUR CURIOSITY</p>
                     <h2>Your day, mapped.</h2>
                   </div>
-                  <span className="badge">Explore</span>
+                  <span className="badge">
+                    {day?.places.filter((place) => place.latitude !== null).length || 0}{' '}
+                    pins
+                  </span>
                 </div>
                 <TripMap
                   destinationLocation={trip.destinationLocation}

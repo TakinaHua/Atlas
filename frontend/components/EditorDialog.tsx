@@ -41,13 +41,28 @@ export default function EditorDialog({
   return (
     <dialog
       ref={dialog}
+      aria-labelledby="editor-title"
       onCancel={(event) => {
         event.preventDefault();
         if (!saving) onClose();
       }}
     >
       <form onSubmit={submit}>
-        <h2>{title}</h2>
+        <div className="dialog-heading">
+          <div>
+            <p className="eyebrow">MAKE IT YOUR OWN</p>
+            <h2 id="editor-title">{title}</h2>
+          </div>
+          <button
+            type="button"
+            className="close-button secondary"
+            aria-label="Close editor"
+            disabled={saving}
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </div>
         <fieldset disabled={saving}>{children}</fieldset>
         {error && (
           <p className="error" role="alert">
