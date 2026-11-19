@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-19T18:17:25.670628+00:00",
+  "title": "Atlas Travel Editions",
+  "extensions": {
+    "breakpoints": [
+      {
+        "name": "stack-planner",
+        "value": "767px"
+      },
+      {
+        "name": "compact-layout",
+        "value": "650px"
+      }
+    ],
+    "motion": [
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce",
+        "purpose": "Disable CSS transitions and smooth scrolling."
+      }
+    ],
+    "shadows": [
+      {
+        "name": "selected-stop",
+        "value": "inset 4px 0 #783f43",
+        "purpose": "Identify the active itinerary row."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary action",
+      "kind": "button",
+      "html": "<button class=\"ds-primary\">Plan a trip</button>",
+      "css": ".ds-primary{background:var(--edition-wine,#783f43);color:var(--edition-card,#fffcf7);border:0;border-radius:5px;padding:12px 20px;font:600 14px system-ui}.ds-primary:hover{background:#302b28}.ds-primary:focus-visible{outline:3px solid var(--edition-wine,#783f43);outline-offset:3px}",
+      "refersTo": "primary-button"
+    },
+    {
+      "name": "Secondary action",
+      "kind": "button",
+      "html": "<button class=\"ds-secondary\">Cancel</button>",
+      "css": ".ds-secondary{background:var(--edition-card,#fffcf7);border:1px solid var(--edition-rule,#d8cfc5);border-radius:5px;padding:11px 18px}.ds-secondary:hover{background:#f8f5ef}.ds-secondary:focus-visible{outline:3px solid var(--edition-wine,#783f43);outline-offset:3px}"
+    },
+    {
+      "name": "Search field",
+      "kind": "input",
+      "html": "<label class=\"ds-field\">Search your trips<input type=\"search\" placeholder=\"Find a trip or destination\"></label>",
+      "css": ".ds-field{font:14px system-ui}.ds-field input{display:block;background:var(--edition-card,#fffcf7);color:#302b28;padding:11px 12px;border:1px solid #91847b;border-radius:4px}.ds-field input:focus-visible{outline:3px solid var(--edition-wine,#783f43);outline-offset:3px}",
+      "refersTo": "text-field"
+    },
+    {
+      "name": "Current day",
+      "kind": "nav",
+      "html": "<nav aria-label=\"Itinerary days\"><button class=\"ds-day\" aria-current=\"date\">Day 1<br>Oct 10<br><small>2 stops</small></button></nav>",
+      "css": ".ds-day{background:var(--edition-wine,#783f43);color:var(--edition-card,#fffcf7);border:0;border-radius:5px;min-width:112px;padding:10px 16px;text-align:left}.ds-day:focus-visible{outline:3px solid var(--edition-wine,#783f43);outline-offset:3px}"
+    },
+    {
+      "name": "Selected stop",
+      "kind": "card",
+      "html": "<div class=\"ds-stop\"><button aria-pressed=\"true\"><span>2</span>Point State Park</button></div>",
+      "css": ".ds-stop{border:1px solid var(--edition-wine,#783f43);background:#f2e6e1;border-radius:5px;box-shadow:inset 4px 0 var(--edition-wine,#783f43);padding:16px}.ds-stop button{background:transparent;border:0;font:21px Georgia,serif;min-height:44px}.ds-stop span{display:inline-block;border-radius:50%;background:var(--edition-wine,#783f43);color:var(--edition-card,#fffcf7);padding:4px 9px;margin-right:12px;font:14px system-ui}.ds-stop button:focus-visible{outline:3px solid var(--edition-wine,#783f43);outline-offset:3px}",
+      "refersTo": "stop-selected"
+    },
+    {
+      "name": "Nature category",
+      "kind": "chip",
+      "html": "<span class=\"ds-category\">Nature</span>",
+      "css": ".ds-category{background:#e4eedf;color:#3b623c;font:10px system-ui;border-radius:5px;padding:2px 7px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Travel Editions",
+    "overview": "Travel Editions treats each trip as a journal the traveler can edit. Photography establishes the destination on the dashboard. Inside the planner, the date, stop names, and numbered map markers carry the identity. A traveler should be able to find Point State Park in the itinerary, select it, and recognize the same stop on the map.\n\nThe dashboard has one prominent creation action and a searchable shelf of saved trips. The planner supports denser work: ordering stops, moving them between days, editing notes, and calculating routes. Both use the same paper and ink surfaces, serif headings, and burgundy selection treatment.",
+    "dos": [
+      "Do use real destinations, trip names, dates, and stop counts to establish hierarchy.",
+      "Do maintain the selected stop across the list-to-map jump and return.",
+      "Do retain photo fallback, provider credit, and routing limitations when compacting a surface."
+    ],
+    "donts": [
+      "Don't present an editable sample as a saved trip before the traveler adds it.",
+      "Don't draw an inferred route between stops before a route calculation succeeds.",
+      "Don't add dashboard promotional sections between the primary action and saved trips."
+    ]
+  }
+}

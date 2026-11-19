@@ -55,6 +55,17 @@ export default function DestinationSearch({
       controller.abort();
     };
   }, [query, selected]);
+  useEffect(() => {
+    if (!open || active < 0) return;
+    const list = document.getElementById(listId);
+    const option = document.getElementById(`${listId}-${active}`);
+    if (!list || !option) return;
+    const bounds = list.getBoundingClientRect();
+    const item = option.getBoundingClientRect();
+    if (item.bottom > bounds.bottom) list.scrollTop += item.bottom - bounds.bottom;
+    else if (item.top < bounds.top) list.scrollTop -= bounds.top - item.top;
+  }, [active, open, listId]);
+
   function choose(location: DestinationLocation) {
     setSelected(location);
     setQuery(location.label);

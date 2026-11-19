@@ -21,6 +21,7 @@ export default function TripMap({
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const overlays = useRef<L.LayerGroup | null>(null);
+  const markers = useRef(new Map<string, L.Marker>());
   const contentBounds = useRef<L.LatLngBounds | null>(null);
   const [tileError, setTileError] = useState(false);
 
@@ -37,9 +38,7 @@ export default function TripMap({
     map.current = instance;
     overlays.current = L.layerGroup().addTo(instance);
     const observer = new ResizeObserver(() => {
-      instance.invalidateSize();
-      if (contentBounds.current?.isValid())
-        instance.fitBounds(contentBounds.current, { padding: [40, 40], maxZoom: 14 });
+      instance.invalidateSize({ animate: false });
     });
     observer.observe(container.current);
     return () => {
@@ -52,13 +51,14 @@ export default function TripMap({
   useEffect(() => {
     if (!map.current || !overlays.current) return;
     overlays.current.clearLayers();
+    markers.current.clear();
     const bounds = L.latLngBounds([]);
     places.forEach((place, index) => {
       if (place.latitude === null || place.longitude === null) return;
       const point: L.LatLngTuple = [place.latitude, place.longitude];
       bounds.extend(point);
       const icon = L.divIcon({
-        className: `map-pin ${selectedId === place.id ? 'selected' : ''}`,
+        className: 'map-pin',
         html: `<span>${index + 1}</span>`,
         iconSize: [30, 30],
         iconAnchor: [15, 15],
@@ -66,16 +66,25 @@ export default function TripMap({
       // Use a text node for user-entered names: popup HTML must never be executable.
       const label = document.createElement('span');
       label.textContent = place.name;
-      L.marker(point, { icon, title: place.name, keyboard: true })
+      const marker = L.marker(point, { icon, title: place.name, keyboard: true })
         .bindPopup(label)
         .on('click', () => onSelect(place.id))
         .addTo(overlays.current!);
+      marker.getElement()?.setAttribute('aria-label', `Stop ${index + 1}, ${place.name}`);
+      marker.getElement()?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        event.stopPropagation();
+        onSelect(place.id);
+        marker.openPopup();
+      });
+      markers.current.set(place.id, marker);
     });
     if (route) {
       const points: L.LatLngTuple[] = route.geometry.coordinates.map(
         ([longitude, latitude]) => [latitude, longitude],
       );
-      L.polyline(points, { color: '#245e4d', weight: 5, opacity: 0.85 }).addTo(
+      L.polyline(points, { color: '#783f43', weight: 5, opacity: 0.85 }).addTo(
         overlays.current,
       );
       points.forEach((point) => bounds.extend(point));
@@ -89,7 +98,19 @@ export default function TripMap({
         destinationLocation.zoom,
       );
     else map.current.setView([39.5, -98.35], 4);
-  }, [places, route, selectedId, onSelect, destinationLocation]);
+  }, [places, route, onSelect, destinationLocation]);
+
+  useEffect(() => {
+    for (const [id, marker] of markers.current) {
+      const active = id === selectedId;
+      const element = marker.getElement();
+      element?.classList.toggle('selected', active);
+      element?.setAttribute('aria-pressed', String(active));
+      marker.setZIndexOffset(active ? 1000 : 0);
+      if (active && map.current && !map.current.getBounds().contains(marker.getLatLng()))
+        map.current.panTo(marker.getLatLng(), { animate: false });
+    }
+  }, [selectedId, places, route, destinationLocation]);
 
   return (
     <>
@@ -102,6 +123,23 @@ export default function TripMap({
             : 'Interactive map of destinations'
         }
       />
+      {(route ||
+        places.some((place) => place.latitude !== null && place.longitude !== null)) && (
+        <button
+          className="secondary fit-day"
+          onClick={() => {
+            const bounds = contentBounds.current;
+            if (bounds?.isValid())
+              map.current?.fitBounds(bounds, {
+                padding: [32, 32],
+                maxZoom: 14,
+                animate: false,
+              });
+          }}
+        >
+          Fit day to map
+        </button>
+      )}
       {destinationLocation && (
         <p className="muted">
           Trip area: {destinationLocation.label} · Location data by{' '}

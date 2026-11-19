@@ -40,6 +40,7 @@ export default function EditorDialog({
 
   return (
     <dialog
+      className="edition-dialog"
       ref={dialog}
       aria-labelledby="editor-title"
       onCancel={(event) => {
@@ -50,7 +51,6 @@ export default function EditorDialog({
       <form onSubmit={submit}>
         <div className="dialog-heading">
           <div>
-            <p className="eyebrow">MAKE IT YOUR OWN</p>
             <h2 id="editor-title">{title}</h2>
           </div>
           <button

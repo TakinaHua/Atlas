@@ -81,7 +81,7 @@ test('create, edit, reorder, day navigation, persistence, mobile, and delete', a
   await page.locator('.stops li').first().getByRole('button', { name: 'Remove' }).click();
   await expect(page.locator('.stops li')).toHaveCount(1);
   await page.getByRole('button', { name: 'Delete trip', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Trips in the future' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Saved trips' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -398,6 +398,13 @@ test('place search selection saves a map pin; changing address clears it; failur
     .locator('.stops li')
     .getByRole('button', { name: 'Edit', exact: true })
     .click();
+  await page.getByLabel('Place name', { exact: true }).fill('Afternoon walk');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.locator('.map-pin')).toHaveAttribute('title', 'Afternoon walk');
+  await page
+    .locator('.stops li')
+    .getByRole('button', { name: 'Edit', exact: true })
+    .click();
   await page.getByLabel('Address', { exact: true }).fill('A different address');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.locator('.map-pin')).toHaveCount(0);
@@ -600,4 +607,73 @@ test('local Dijkstra walking demo displays a real graph path without saving the 
   );
   await page.getByRole('button', { name: 'Clear demo path', exact: true }).click();
   await expect(page.locator('.leaflet-overlay-pane path')).toHaveCount(0);
+});
+
+test('Travel Editions keeps map and list selection linked across desktop and mobile', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await createTrip(page);
+  await addPlace(page, 'Carnegie Museum of Art', '40.4433', '-79.9500');
+  await addPlace(page, 'Point State Park', '40.4417', '-80.0128');
+  const museumPin = page.locator('.map-pin[title="Carnegie Museum of Art"]');
+  await museumPin.focus();
+  await museumPin.press('Enter');
+  await expect(museumPin).toBeFocused();
+  await expect(museumPin).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.stop-title[aria-pressed="true"]')).toContainText(
+    'Carnegie Museum of Art',
+  );
+  await page.locator('.stop-title').filter({ hasText: 'Point State Park' }).click();
+  await expect(page.locator('.map-pin.selected')).toHaveAttribute(
+    'title',
+    'Point State Park',
+  );
+  await page.screenshot({
+    path: testInfo.outputPath('planner-desktop.png'),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('link', { name: /Show selected stop on map/ }).click();
+  await expect(page.locator('.map-pin.selected')).toBeInViewport();
+  await page.screenshot({ path: testInfo.outputPath('planner-mobile-map.png') });
+  await page.getByRole('link', { name: /Return to selected stop/ }).click();
+  await expect(page.locator('.stops li.selected')).toBeInViewport();
+  await page.screenshot({
+    path: testInfo.outputPath('planner-mobile.png'),
+    fullPage: true,
+  });
+});
+
+test('responsive planner keeps stops and map reachable from 320px to desktop', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Explore walking demo' }).click();
+  const list = page.locator('#edition-list');
+  const map = page.locator('#edition-map');
+  const nav = page.getByRole('navigation', { name: 'Jump within planner' });
+  for (const width of [1440, 1024, 768, 767, 390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+      .toBe(true);
+    const left = await list.boundingBox();
+    const right = await map.boundingBox();
+    expect(left).toBeTruthy();
+    expect(right).toBeTruthy();
+    if (width >= 768) {
+      await expect(nav).toBeHidden();
+      expect(right!.x).toBeGreaterThanOrEqual(left!.x + left!.width - 1);
+    } else {
+      await expect(nav).toBeVisible();
+      await nav.getByRole('link', { name: 'Map', exact: true }).click();
+      await expect(page.locator('.leaflet-container')).toBeInViewport();
+      await page.getByRole('button', { name: 'Fit day to map' }).click();
+      await nav.getByRole('link', { name: 'Route', exact: true }).click();
+      await expect(
+        page.getByRole('heading', { name: 'Route for the day' }),
+      ).toBeInViewport();
+    }
+  }
 });
