@@ -526,7 +526,10 @@ export default function Home() {
                 .map((item) => (
                   <article className="trip-card" key={item.id}>
                     <div className="card-art">
-                      <DestinationPhoto destination={item.destination} />
+                      <DestinationPhoto
+                        destination={item.destination}
+                        location={item.destinationLocation}
+                      />
                       <span className="photo-badge">
                         {item.days.length} {item.days.length === 1 ? 'day' : 'days'} to
                         explore
@@ -648,7 +651,10 @@ export default function Home() {
               ← All trips
             </button>
             <div className="trip-overview">
-              <DestinationPhoto destination={trip.destination} />
+              <DestinationPhoto
+                destination={trip.destination}
+                location={trip.destinationLocation}
+              />
               <div>
                 <p className="eyebrow">{trip.destination}</p>
                 <h1>{trip.name}</h1>
