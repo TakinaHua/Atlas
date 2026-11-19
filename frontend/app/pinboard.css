@@ -1,0 +1,396 @@
+body:has(.home-stage) {
+  height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+body:has(.home-stage) .topbar {
+  flex: none;
+  justify-content: flex-start;
+  padding-inline: clamp(18px, 4vw, 72px);
+  gap: 12px;
+}
+body:has(.home-stage) .brand {
+  color: var(--edition-wine);
+  font-size: 38px;
+}
+body:has(.home-stage) .brand-mark {
+  display: none;
+}
+.edition-name {
+  font: italic clamp(17px, 2vw, 24px) var(--edition-display);
+  color: var(--edition-wine);
+}
+body:has(.home-stage) .topbar button {
+  margin-left: auto;
+  background: var(--edition-wine);
+  color: white;
+}
+main.dashboard:has(.home-stage) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: none;
+}
+.home-stage {
+  position: relative;
+  isolation: isolate;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.cover-layer,
+.trip-board {
+  position: absolute;
+  inset: 0;
+}
+.cover-layer {
+  border-bottom: 14px solid var(--edition-paper);
+}
+.travel-cover {
+  position: relative;
+  height: 100%;
+  isolation: isolate;
+  color: #fffaf0;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+.cover-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.55s;
+  z-index: -2;
+}
+.cover-image[data-selected='true'] {
+  opacity: 1;
+}
+.travel-cover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, rgba(20, 19, 15, 0.66), transparent 68%),
+    linear-gradient(0deg, rgba(26, 24, 21, 0.4), transparent 25%);
+}
+.cover-copy {
+  position: absolute;
+  left: clamp(24px, 7vw, 120px);
+  top: 43%;
+  transform: translateY(-50%);
+}
+.dashboard .cover-copy h1 {
+  font: 500 clamp(56px, 7.5vw, 125px)/0.98 var(--edition-display);
+  color: inherit;
+  margin: 0 0 28px;
+  letter-spacing: -0.055em;
+}
+.cover-copy em {
+  display: block;
+  font-size: 0.78em;
+  font-weight: 400;
+}
+.dashboard .cover-copy button {
+  background: var(--edition-paper);
+  color: #492829;
+  font-size: 16px;
+  padding: 13px 20px;
+}
+.cover-controls {
+  position: absolute;
+  right: 4%;
+  bottom: 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  background: #27221dd6;
+  padding: 4px 8px;
+  border-radius: 30px;
+  font-size: 13px;
+}
+.dashboard .cover-controls button {
+  background: transparent;
+  border: 0;
+  color: white;
+  font-size: 18px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+}
+.dashboard .board-handle {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 0;
+  border-radius: 18px 18px 0 0;
+  background: var(--edition-paper);
+  color: var(--edition-wine);
+  padding: 12px 34px;
+  font: 20px var(--edition-display);
+}
+.trip-board {
+  overflow: auto;
+  overscroll-behavior: contain;
+  background-color: #d6bd98;
+  background-image:
+    repeating-linear-gradient(3deg, #78593812 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(91deg, #fff5dd38 0 1px, transparent 1px 3px);
+  border-block: 6px solid #88694c;
+  transform: translateY(105%);
+  visibility: hidden;
+  transition:
+    transform 0.42s cubic-bezier(0.22, 0.75, 0.22, 1),
+    visibility 0s 0.42s;
+}
+.trip-board[data-open='true'] {
+  visibility: visible;
+  transform: translateY(0);
+  transition-delay: 0s;
+}
+.board-inner {
+  max-width: 1080px;
+  margin: auto;
+  padding: 18px clamp(22px, 4vw, 64px) 28px;
+}
+.board-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #845f4680;
+}
+.board-heading h2 {
+  margin: 0 0 4px;
+  font-size: clamp(32px, 4vw, 52px);
+  color: #532d32;
+}
+.dashboard .board-close,
+.dashboard .board-pages button {
+  background: var(--edition-paper);
+  color: var(--edition-wine);
+  min-height: 44px;
+}
+.trip-board .trip-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 460px;
+  margin: 10px 0;
+}
+.trip-search span {
+  white-space: nowrap;
+}
+.pin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px clamp(24px, 5vw, 84px);
+  padding: 14px 8px 18px;
+  animation: print-page 0.32s ease-out;
+}
+.pin-grid[data-direction='-1'] {
+  --page-offset: -35px;
+}
+@keyframes print-page {
+  from {
+    opacity: 0.45;
+    transform: translateX(var(--page-offset, 35px));
+  }
+}
+.dashboard .pinned-print {
+  --tilt: -1.7deg;
+  --pin: 42%;
+  --shift: 3px;
+  position: relative;
+  display: block;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 9px 9px 8px;
+  background: #fbf3df;
+  box-shadow: 2px 5px 8px #4e362e45;
+  overflow: visible;
+  transform: translateY(var(--shift)) rotate(var(--tilt));
+}
+.dashboard .pinned-print:nth-child(2) {
+  --tilt: 1.5deg;
+  --pin: 63%;
+  --shift: -4px;
+}
+.dashboard .pinned-print:nth-child(3) {
+  --tilt: 0.85deg;
+  --pin: 35%;
+  --shift: 2px;
+}
+.dashboard .pinned-print:nth-child(4) {
+  --tilt: -1.15deg;
+  --pin: 55%;
+  --shift: 6px;
+}
+.pinned-print::before,
+.blank-postcard::before {
+  content: '';
+  position: absolute;
+  left: var(--pin, 48%);
+  top: -4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 33% 25%, #ffdc93, #aa792b 40%, #583710 77%);
+  box-shadow: 1px 3px 3px #49321699;
+  z-index: 3;
+  pointer-events: none;
+}
+.print-photo {
+  height: clamp(108px, 18vh, 200px);
+}
+.print-caption {
+  padding: 6px 44px 0 3px;
+}
+.print-caption h3,
+.print-caption p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.dashboard .print-caption button {
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: #552d32;
+  font: italic clamp(19px, 2vw, 26px) var(--edition-display);
+}
+.print-caption button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+.print-caption p {
+  font-size: 12px;
+  color: #53463f;
+}
+.dashboard .print-delete {
+  position: absolute;
+  right: 5px;
+  bottom: 4px;
+  padding: 4px;
+  min-height: 40px;
+  background: none;
+  color: #65343a;
+  font-size: 12px;
+  text-decoration: underline;
+}
+.print-photo :is(details, button) {
+  position: relative;
+  z-index: 2;
+}
+.print-photo .photo-credit {
+  position: absolute;
+}
+.board-pages {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.board-pages button:disabled {
+  visibility: hidden;
+}
+.board-tools {
+  margin-top: 16px;
+  border-top: 1px solid #845f4670;
+}
+.board-tools summary {
+  cursor: pointer;
+  padding: 14px 0;
+  color: #4c2e30;
+  width: fit-content;
+}
+.board-tools .data-tools {
+  margin: 0;
+  padding: 10px 16px;
+  background: var(--edition-paper);
+}
+.blank-postcard {
+  position: relative;
+  margin: clamp(46px, 12vh, 140px) auto;
+  padding: 44px 20px;
+  max-width: 420px;
+  text-align: center;
+  background: #fff5df;
+  transform: rotate(-1.4deg);
+  box-shadow: 2px 4px 9px #543c3040;
+}
+.blank-postcard h3 {
+  font: italic 32px var(--edition-display);
+  color: #683a3c;
+  margin: 0 0 18px;
+}
+@media (max-width: 640px) {
+  .cover-copy {
+    top: 40%;
+    left: 6%;
+  }
+  .cover-image {
+    object-position: 62% center;
+  }
+  .cover-controls {
+    bottom: 55px;
+    right: 5%;
+  }
+  .board-inner {
+    padding-inline: 22px;
+  }
+  .pin-grid {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+  .print-photo {
+    height: 145px;
+  }
+  .trip-search span {
+    position: absolute;
+    clip-path: inset(50%);
+  }
+  .edition-name {
+    font-size: 16px;
+  }
+  body:has(.home-stage) .topbar {
+    gap: 7px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .trip-board,
+  .cover-image,
+  .pin-grid {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* A neutral travel still life supplies a print for uncatalogued destinations. */
+.print-photo .photo-fallback {
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 6px;
+  background: #d8c6a5 url('/images/journal-cover.webp') center/cover;
+}
+.print-photo .photo-fallback > :is(span, small) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.print-photo .photo-fallback button {
+  background: var(--edition-paper);
+  color: var(--edition-wine);
+}

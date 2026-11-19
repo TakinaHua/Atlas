@@ -68,7 +68,8 @@ test('create, edit, reorder, day navigation, persistence, mobile, and delete', a
   await page.getByRole('button', { name: /DAY 1/ }).click();
   await expect(page.locator('.stops li')).toHaveCount(2);
   await page.reload();
-  await page.getByRole('button', { name: 'Open itinerary' }).click();
+  await page.getByRole('button', { name: 'My trips', exact: true }).click();
+  await page.getByRole('button', { name: /^Open itinerary:/ }).click();
   await expect(page.locator('.stops li')).toHaveCount(2);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('.leaflet-container')).toBeVisible();
@@ -81,13 +82,14 @@ test('create, edit, reorder, day navigation, persistence, mobile, and delete', a
   await page.locator('.stops li').first().getByRole('button', { name: 'Remove' }).click();
   await expect(page.locator('.stops li')).toHaveCount(1);
   await page.getByRole('button', { name: 'Delete trip', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Saved trips' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'My trips' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
 test('invalid import leaves existing trips untouched', async ({ page }) => {
   await createTrip(page);
   await page.getByRole('button', { name: 'My trips', exact: true }).click();
+  await page.getByText('Import and export', { exact: true }).click();
   await page.getByLabel('Import JSON backup').setInputFiles({
     name: 'bad.json',
     mimeType: 'application/json',
@@ -113,6 +115,8 @@ test('legacy import preserves local data and avoids duplicates', async ({ page }
     legacy,
   );
   await page.goto('/');
+  await page.getByRole('button', { name: 'My trips', exact: true }).click();
+  await page.getByText('Import and export', { exact: true }).click();
   await page.getByRole('button', { name: 'Import browser trips' }).click();
   await expect(page.getByRole('status')).toContainText('Imported 1 trips');
   await page.getByRole('button', { name: 'Import browser trips' }).click();
@@ -123,7 +127,8 @@ test('legacy import preserves local data and avoids duplicates', async ({ page }
 
 test('sample trip is usable and failed API saves retain form input', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Explore a sample trip' }).click();
+  await page.getByRole('button', { name: 'Next destination' }).click();
+  await page.getByRole('button', { name: 'Preview the coastal itinerary' }).click();
   await page.getByRole('button', { name: 'Add to my trips' }).click();
   await expect(page.getByRole('heading', { name: 'A little aloha' })).toBeVisible();
   await expect(page.locator('.map-pin')).toHaveCount(2);
@@ -146,7 +151,9 @@ test('dashboard delete can be canceled and persists without removing other trips
 }) => {
   await createTrip(page);
   await page.getByRole('button', { name: 'My trips', exact: true }).click();
-  await page.getByRole('button', { name: 'Explore a sample trip' }).click();
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByRole('button', { name: 'Next destination' }).click();
+  await page.getByRole('button', { name: 'Preview the coastal itinerary' }).click();
   await page.getByRole('button', { name: 'Add to my trips' }).click();
   await page.getByRole('button', { name: 'My trips', exact: true }).click();
   const remove = page.getByRole('button', {
@@ -160,6 +167,7 @@ test('dashboard delete can be canceled and persists without removing other trips
   await remove.click();
   await expect(page.locator('.trip-card')).toHaveCount(1);
   await page.reload();
+  await page.getByRole('button', { name: 'My trips', exact: true }).click();
   await expect(page.locator('.trip-card')).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'A little aloha' })).toBeVisible();
 });
@@ -168,19 +176,24 @@ test('sample stays unsaved until explicitly added and displays readable dates', 
   page,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Explore a sample trip' }).click();
+  await page.getByRole('button', { name: 'Next destination' }).click();
+  await page.getByRole('button', { name: 'Preview the coastal itinerary' }).click();
   await expect(page.getByRole('button', { name: 'DAY 1 Nov 14' })).toBeVisible();
   await page.getByRole('button', { name: 'My trips', exact: true }).click();
   await expect(page.locator('.trip-card')).toHaveCount(0);
   await page.reload();
+  await page.getByRole('button', { name: 'My trips', exact: true }).click();
   await expect(page.locator('.trip-card')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Explore a sample trip' }).click();
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByRole('button', { name: 'Next destination' }).click();
+  await page.getByRole('button', { name: 'Preview the coastal itinerary' }).click();
   await page.getByRole('button', { name: 'Edit trip', exact: true }).click();
   await page.getByLabel('Trip name', { exact: true }).fill('My Hawaii plans');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.getByRole('button', { name: 'Add to my trips' }).click();
   await expect(page.getByRole('button', { name: 'Add to my trips' })).toHaveCount(0);
   await page.reload();
+  await page.getByRole('button', { name: 'My trips', exact: true }).click();
   await expect(page.locator('.trip-card')).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'My Hawaii plans' })).toBeVisible();
 });
@@ -197,7 +210,8 @@ test('Other category accepts custom text and preserves it when editing', async (
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.locator('.stops li')).toContainText('Live music');
   await page.reload();
-  await page.getByRole('button', { name: 'Open itinerary' }).click();
+  await page.getByRole('button', { name: 'My trips', exact: true }).click();
+  await page.getByRole('button', { name: /^Open itinerary:/ }).click();
   await page
     .locator('.stops li')
     .getByRole('button', { name: 'Edit', exact: true })
@@ -220,10 +234,11 @@ test('server trips appear in a fresh browser; preview import preserves original 
   try {
     const other = await fresh.newPage();
     await other.goto(page.url());
+    await other.getByRole('button', { name: 'My trips', exact: true }).click();
     await expect(
       other.getByRole('heading', { name: 'Pittsburgh weekend' }),
     ).toBeVisible();
-    await other.getByRole('button', { name: 'Open itinerary' }).click();
+    await other.getByRole('button', { name: /^Open itinerary:/ }).click();
     await expect(other.locator('.stops li')).toContainText('Saved without coordinates');
   } finally {
     await fresh.close();
@@ -244,6 +259,8 @@ test('server trips appear in a fresh browser; preview import preserves original 
     preview,
   );
   await page.reload();
+  await page.getByRole('button', { name: 'My trips', exact: true }).click();
+  await page.getByText('Import and export', { exact: true }).click();
   await page.getByRole('button', { name: 'Import browser trips' }).click();
   await expect(page.getByRole('status')).toContainText('Imported 1 trips');
   await page.getByRole('button', { name: 'Import browser trips' }).click();
@@ -257,7 +274,8 @@ test('a stale tab cannot overwrite a newer edit', async ({ page, context }) => {
   await createTrip(page);
   const other = await context.newPage();
   await other.goto(page.url());
-  await other.getByRole('button', { name: 'Open itinerary' }).click();
+  await other.getByRole('button', { name: 'My trips', exact: true }).click();
+  await other.getByRole('button', { name: /^Open itinerary:/ }).click();
   await page.getByRole('button', { name: 'Edit trip', exact: true }).click();
   await page.getByLabel('Trip name', { exact: true }).fill('Newer name');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -269,6 +287,7 @@ test('a stale tab cannot overwrite a newer edit', async ({ page, context }) => {
     'changed elsewhere',
   );
   await other.reload();
+  await other.getByRole('button', { name: 'My trips', exact: true }).click();
   await expect(other.getByRole('heading', { name: 'Newer name' })).toBeVisible();
   await other.close();
 });
@@ -310,7 +329,8 @@ test('U.S. destination search selects and persists a city, supports keyboard and
   const saved = trips.find((t: { name: string }) => t.name === 'Destination search trip');
   expect(saved.destinationLocation.latitude).toBeCloseTo(21.30694);
   await page.reload();
-  await page.getByRole('button', { name: 'Open itinerary' }).click();
+  await page.getByRole('button', { name: 'My trips', exact: true }).click();
+  await page.getByRole('button', { name: /^Open itinerary:/ }).click();
   await expect(
     page.getByText('Trip area: Honolulu, Hawaii', { exact: false }),
   ).toBeVisible();
@@ -392,7 +412,8 @@ test('place search selection saves a map pin; changing address clears it; failur
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.locator('.map-pin')).toHaveCount(1);
   await page.reload();
-  await page.getByRole('button', { name: 'Open itinerary' }).click();
+  await page.getByRole('button', { name: 'My trips', exact: true }).click();
+  await page.getByRole('button', { name: /^Open itinerary:/ }).click();
   await expect(page.locator('.map-pin')).toHaveCount(1);
   await page
     .locator('.stops li')
@@ -464,7 +485,8 @@ test('moving a place between days is atomic, preserves details and persists afte
   expect(moved.days[0].places).toEqual([]);
   expect(moved.days[1].places[1]).toEqual(savedPlace);
   await page.reload();
-  await page.getByRole('button', { name: 'Open itinerary' }).click();
+  await page.getByRole('button', { name: 'My trips', exact: true }).click();
+  await page.getByRole('button', { name: /^Open itinerary:/ }).click();
   await expect(page.locator('.stops li')).toHaveCount(0);
   await page.getByRole('button', { name: /DAY 2/ }).click();
   await expect(page.locator('.stops li')).toHaveCount(2);
@@ -554,7 +576,7 @@ test('local Dijkstra walking demo displays a real graph path without saving the 
   request,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Explore walking demo', exact: true }).click();
+  await page.getByRole('button', { name: 'Preview the walk', exact: true }).click();
   await page
     .getByText('Shortest walking path · Pittsburgh demo', { exact: true })
     .click();
@@ -649,7 +671,7 @@ test('responsive planner keeps stops and map reachable from 320px to desktop', a
   page,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Explore walking demo' }).click();
+  await page.getByRole('button', { name: 'Preview the walk' }).click();
   const list = page.locator('#edition-list');
   const map = page.locator('#edition-map');
   const nav = page.getByRole('navigation', { name: 'Jump within planner' });
@@ -676,4 +698,43 @@ test('responsive planner keeps stops and map reachable from 320px to desktop', a
       ).toBeInViewport();
     }
   }
+});
+
+test('pinboard pages hold four prints and preserve the selected cover', async ({
+  page,
+}) => {
+  const trips = Array.from({ length: 5 }, (_, i) => ({
+    id: String(i),
+    name: 'Journey ' + i,
+    destination: 'Pittsburgh',
+    revision: 1,
+    startDate: '2026-07-01',
+    endDate: '2026-07-01',
+    days: [{ date: '2026-07-01', places: [] }],
+  }));
+  await page.route('**/api/itineraries', (route) => route.fulfill({ json: { trips } }));
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Next destination' }).click();
+  await expect(page.getByRole('heading', { name: /along the shore/ })).toBeVisible();
+  await page.screenshot({ path: 'test-results/cover.png' });
+  await page.getByRole('button', { name: 'My trips' }).click();
+  await expect(page.locator('.pinned-print')).toHaveCount(4);
+  const positions = await page
+    .locator('.pinned-print')
+    .evaluateAll((cards) => cards.map((card) => getComputedStyle(card, '::before').left));
+  expect(new Set(positions).size).toBe(4);
+  await page.screenshot({ path: 'test-results/pinboard.png' });
+  await page.getByRole('button', { name: 'Next trip page' }).click();
+  await expect(page.locator('.pinned-print')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Previous trip page' }).click();
+  await expect(page.locator('.pinned-print')).toHaveCount(4);
+  await page.getByRole('searchbox').fill('Journey 4');
+  await expect(page.locator('.pinned-print')).toHaveCount(1);
+  await expect(page.getByRole('navigation', { name: 'Trip pages' })).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: 'test-results/pinboard-mobile.png' });
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'My trips' })).toBeFocused();
+  await expect(page.getByRole('heading', { name: /along the shore/ })).toBeVisible();
 });

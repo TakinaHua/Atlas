@@ -122,3 +122,7 @@ Use compact corners for working elements: 4px on fields and dashboard photos, 5p
 - Don't add dashboard promotional sections between the primary action and saved trips.
 
 The implemented styles are in `frontend/app/planner-edition.css`, `frontend/app/dashboard-edition.css`, and the inherited `frontend/app/globals.css`. Selection behavior is in `frontend/components/TripMap.tsx` and `frontend/app/page.tsx`.
+
+## Homepage · By the rivers
+
+The opening spread pairs a full-viewport destination photograph with an editorial title and a sample itinerary. My trips rises from a bottom handle. Use warm flax linen (#d6bd98), ivory photo borders, and small brass pins. Arrange up to four prints per page with independent pin positions, shallow rotations, and staggered vertical offsets. Page horizontally within the fixed board. Respect reduced motion for the slideshow, board lift, and pagination.

@@ -3,6 +3,9 @@
 import dynamic from 'next/dynamic';
 import './planner-edition.css';
 import './dashboard-edition.css';
+import './pinboard.css';
+import TravelCover from '../components/TravelCover';
+import { coastalSample, walkingSample } from '../lib/sample-trips';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import DestinationPhoto from '../components/DestinationPhoto';
 import EditorDialog from '../components/EditorDialog';
@@ -29,6 +32,12 @@ function displayDate(date: string, includeYear = false) {
 }
 
 export default function Home() {
+  const [boardOpen, setBoardOpen] = useState(false);
+  const [cover, setCover] = useState(0);
+  const [boardPage, setBoardPage] = useState(0);
+  const [pageDirection, setPageDirection] = useState(1);
+  const handleRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
   const [tripSearch, setTripSearch] = useState('');
   const [trips, setTrips] = useState<Trip[]>([]);
   const [sampleTrip, setSampleTrip] = useState<Trip | null>(null);
@@ -61,6 +70,30 @@ export default function Home() {
         row?.scrollIntoView({ block: 'center' });
     }
   }, []);
+
+  const matchingTrips = trips.filter((item) =>
+    (item.name + ' ' + item.destination)
+      .toLocaleLowerCase()
+      .includes(tripSearch.toLocaleLowerCase().trim()),
+  );
+  const pages = Math.ceil(matchingTrips.length / 4);
+  const currentPage = Math.min(boardPage, Math.max(0, pages - 1));
+  const pinnedTrips = matchingTrips.slice(currentPage * 4, currentPage * 4 + 4);
+
+  useEffect(() => {
+    if (boardOpen && !trip) closeRef.current?.focus({ preventScroll: true });
+  }, [boardOpen, trip?.id]);
+
+  function closeBoard() {
+    setBoardOpen(false);
+    requestAnimationFrame(() => handleRef.current?.focus({ preventScroll: true }));
+  }
+
+  function showBoard() {
+    clearRoute();
+    setTripId(null);
+    setBoardOpen(true);
+  }
 
   function changeDay(nextDate: string) {
     clearRoute();
@@ -308,8 +341,7 @@ export default function Home() {
       });
       setTrips((current) => current.filter((item) => item.id !== target.id));
       if (tripId === target.id) {
-        clearRoute();
-        setTripId(null);
+        showBoard();
       }
     });
   }
@@ -337,16 +369,18 @@ export default function Home() {
           </span>
           Atlas
         </a>
-        <span className="brand-tagline">A little less rush. A lot more world.</span>
-        <button
-          className="secondary"
-          onClick={() => {
-            clearRoute();
-            setTripId(null);
-          }}
-        >
-          My trips
-        </button>
+        {trip ? (
+          <button className="secondary" onClick={showBoard}>
+            My trips
+          </button>
+        ) : (
+          <>
+            <span className="edition-name">Travel Editions</span>
+            <button disabled={busy} onClick={() => setEditor({ kind: 'trip' })}>
+              Plan a trip
+            </button>
+          </>
+        )}
       </header>
       <main id="main" className={trip ? 'edition' : 'edition dashboard'}>
         {error && (
@@ -371,284 +405,217 @@ export default function Home() {
             {notice}
           </p>
         )}
-        {loading ? (
-          <div className="loading-state" role="status">
-            <span className="loading-dot" />
-            Loading your trips…
-          </div>
-        ) : !trip ? (
-          <>
-            <section className="hero">
-              <div>
-                <h1>Your travel journal</h1>
-                <p>Plan a trip, collect your stops, and map each day.</p>
-                <button disabled={busy} onClick={() => setEditor({ kind: 'trip' })}>
-                  Plan a trip
-                </button>
-              </div>
-              <div className="hero-photo">
-                <DestinationPhoto destination="Oʻahu" eager />
-                <div className="photo-caption">
-                  <small>Waikīkī, Oʻahu</small>
-                </div>
-              </div>
-            </section>
-            <section className="section-heading">
-              <div>
-                <h2>Saved trips</h2>
-              </div>
-              {(tripsLoaded || trips.length > 0) && (
-                <span>
-                  {trips.length} {trips.length === 1 ? 'trip' : 'trips'}
-                </span>
-              )}
-            </section>
-            <label className="trip-search">
-              <span>Search your trips</span>
-              <input
-                type="search"
-                placeholder="Find a trip or destination"
-                value={tripSearch}
-                onChange={(event) => setTripSearch(event.target.value)}
+        {!trip ? (
+          <div className="home-stage">
+            <div className="cover-layer" inert={boardOpen}>
+              <TravelCover
+                index={cover}
+                change={setCover}
+                active={!boardOpen && !editor}
+                preview={() => {
+                  const sample = cover === 0 ? walkingSample() : coastalSample();
+                  setSampleTrip(sample);
+                  openTrip(sample);
+                }}
               />
-            </label>
-            <div className="trip-grid">
-              {trips
-                .filter((item) =>
-                  `${item.name} ${item.destination}`
-                    .toLocaleLowerCase()
-                    .includes(tripSearch.toLocaleLowerCase()),
-                )
-                .map((item) => (
-                  <article className="trip-card" key={item.id}>
-                    <div className="card-art">
-                      <DestinationPhoto
-                        destination={item.destination}
-                        location={item.destinationLocation}
-                      />
-                      <span className="photo-badge">
-                        {item.days.length} {item.days.length === 1 ? 'day' : 'days'}
-                      </span>
-                    </div>
-                    <div className="card-body">
-                      <p className="eyebrow">{item.destination}</p>
-                      <h3>{item.name}</h3>
-                      <p>
-                        {displayDate(item.startDate, true)} —{' '}
-                        {displayDate(item.endDate, true)}
-                      </p>
-                      <div className="actions">
-                        <button className="secondary" onClick={() => openTrip(item)}>
-                          Open itinerary
-                        </button>
+              <button
+                className="board-handle"
+                ref={handleRef}
+                aria-expanded={boardOpen}
+                aria-controls="trip-board"
+                onClick={() => setBoardOpen(true)}
+              >
+                My trips <span aria-hidden="true">↑</span>
+              </button>
+            </div>
+            <section
+              id="trip-board"
+              className="trip-board"
+              data-open={boardOpen}
+              aria-label="My trips"
+              inert={!boardOpen}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') closeBoard();
+              }}
+            >
+              <div className="board-inner">
+                <div className="board-heading">
+                  <h2>My trips</h2>
+                  <button ref={closeRef} className="board-close" onClick={closeBoard}>
+                    Close <span aria-hidden="true">↓</span>
+                  </button>
+                </div>
+                {trips.length > 0 && (
+                  <label className="trip-search">
+                    <span>Search your trips</span>
+                    <input
+                      type="search"
+                      placeholder="Find a trip or destination"
+                      value={tripSearch}
+                      onChange={(event) => {
+                        setTripSearch(event.target.value);
+                        setBoardPage(0);
+                      }}
+                    />
+                  </label>
+                )}
+                {loading && <p role="status">Loading your trips…</p>}
+                {pinnedTrips.length > 0 && (
+                  <div
+                    key={currentPage}
+                    className="pin-grid"
+                    data-direction={pageDirection}
+                  >
+                    {pinnedTrips.map((item) => (
+                      <article key={item.id} className="trip-card pinned-print">
+                        <div className="print-photo">
+                          <DestinationPhoto
+                            destination={item.destination}
+                            location={item.destinationLocation}
+                          />
+                        </div>
+                        <div className="print-caption">
+                          <h3>
+                            <button
+                              aria-label={'Open itinerary: ' + item.name}
+                              onClick={() => openTrip(item)}
+                            >
+                              {item.name}
+                            </button>
+                          </h3>
+                          <p>
+                            {item.destination} · {displayDate(item.startDate)} –{' '}
+                            {displayDate(item.endDate, true)}
+                          </p>
+                        </div>
                         <button
-                          className="danger"
+                          className="print-delete"
                           disabled={busy}
                           onClick={() => deleteTrip(item)}
-                          aria-label={`Delete ${item.name}`}
+                          aria-label={'Delete ' + item.name}
                         >
-                          Delete trip
+                          Delete
                         </button>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-            </div>
-            {trips.length > 0 &&
-              !trips.some((item) =>
-                `${item.name} ${item.destination}`
-                  .toLocaleLowerCase()
-                  .includes(tripSearch.toLocaleLowerCase()),
-              ) && (
-                <div className="empty">
-                  No trips match “{tripSearch}”.{' '}
-                  <button className="text-button" onClick={() => setTripSearch('')}>
-                    Clear search
-                  </button>
-                </div>
-              )}
-            {tripsLoaded && !trips.length && (
-              <div className="empty">
-                No saved trips yet. Choose “Plan a trip” to start, or explore a sample
-                below.
-              </div>
-            )}
-            <h2 className="samples-title">Sample itineraries</h2>
-            <section className="discovery" aria-label="Explore Atlas">
-              <article>
-                <div>
-                  <h3>Oʻahu by the coast</h3>
-                  <p>Try an editable Oʻahu itinerary.</p>{' '}
-                  <button
-                    className="secondary sample-button"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(async () => {
-                        const sample: Trip = {
-                          id: crypto.randomUUID(),
-                          revision: 1,
-                          name: 'A little aloha',
-                          destination: 'Oʻahu, Hawaii',
-                          startDate: '2026-11-14',
-                          endDate: '2026-11-16',
-                          days: itineraryDates('2026-11-14', '2026-11-16').map(
-                            (date, index) => ({
-                              date,
-                              places:
-                                index === 0
-                                  ? [
-                                      {
-                                        id: crypto.randomUUID(),
-                                        name: 'Waikīkī Beach',
-                                        address: 'Honolulu, Oʻahu',
-                                        category: 'Nature',
-                                        notes: 'A slow start by the ocean.',
-                                        latitude: 21.2767,
-                                        longitude: -157.8275,
-                                      },
-                                      {
-                                        id: crypto.randomUUID(),
-                                        name: 'Diamond Head',
-                                        address: 'Honolulu, Oʻahu',
-                                        category: 'Nature',
-                                        notes:
-                                          'Sample stop — check access and reservations before traveling.',
-                                        latitude: 21.262,
-                                        longitude: -157.805,
-                                      },
-                                    ]
-                                  : [],
-                            }),
-                          ),
-                        };
-                        setSampleTrip(sample);
-                        openTrip(sample);
-                      })
-                    }
-                  >
-                    Explore a sample trip
-                  </button>
-                </div>
-              </article>
-              <article>
-                <div>
-                  <h3>Pittsburgh on foot</h3>
-                  <p>Explore the downtown walking demo.</p>{' '}
-                  <button
-                    className="secondary sample-button"
-                    disabled={busy}
-                    onClick={() => {
-                      const sample: Trip = {
-                        id: crypto.randomUUID(),
-                        revision: 1,
-                        name: 'Downtown walking demo',
-                        destination: 'Pittsburgh, Pennsylvania',
-                        startDate: '2026-10-14',
-                        endDate: '2026-10-14',
-                        days: [
-                          {
-                            date: '2026-10-14',
-                            places: [
-                              {
-                                id: crypto.randomUUID(),
-                                name: 'Gateway area',
-                                address: 'Downtown Pittsburgh',
-                                category: 'Sightseeing',
-                                notes: 'Example graph node; demo only.',
-                                latitude: 40.4420279,
-                                longitude: -80.0060824,
-                              },
-                              {
-                                id: crypto.randomUUID(),
-                                name: 'Market Square area',
-                                address: 'Downtown Pittsburgh',
-                                category: 'Sightseeing',
-                                notes: 'Example graph node; demo only.',
-                                latitude: 40.4410009,
-                                longitude: -80.002423,
-                              },
-                            ],
-                          },
-                        ],
-                      };
-                      setSampleTrip(sample);
-                      openTrip(sample);
-                    }}
-                  >
-                    Explore walking demo
-                  </button>
-                </div>
-              </article>
-            </section>
-            <section className="data-tools">
-              <h3>Import and export</h3>
-              <p>
-                Trips are saved by Atlas and stay available when you reload or switch
-                browsers on this computer. Export a backup to keep a separate copy.
-              </p>
-              <div className="actions">
-                <button
-                  className="secondary"
-                  disabled={!trips.length || busy}
-                  onClick={exportTrips}
-                >
-                  Export trips
-                </button>
-                <label className="file-label">
-                  Import JSON backup
-                  <input
-                    type="file"
-                    accept="application/json,.json"
-                    disabled={busy}
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (file)
-                        void run(async () => {
-                          if (file.size > 900000)
-                            throw new Error('Choose a file smaller than 900 KB.');
-                          await importTrips(await file.text());
-                        });
-                      event.target.value = '';
-                    }}
-                  />
-                </label>
-                {hasLocalTrips && (
-                  <button
-                    className="secondary"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(async () => {
-                        const saved = LOCAL_TRIPS_KEYS.flatMap((key) => {
-                          const value: unknown = JSON.parse(
-                            localStorage.getItem(key) || '[]',
-                          );
-                          if (!Array.isArray(value))
-                            throw new Error(
-                              'Saved browser trips are invalid. Export or recover them before importing.',
-                            );
-                          return value;
-                        });
-                        await importTrips(JSON.stringify(saved));
-                      })
-                    }
-                  >
-                    Import browser trips
-                  </button>
+                      </article>
+                    ))}
+                  </div>
                 )}
+                {pages > 1 && (
+                  <nav className="board-pages" aria-label="Trip pages">
+                    <button
+                      aria-label="Previous trip page"
+                      disabled={currentPage === 0}
+                      onClick={() => {
+                        setPageDirection(-1);
+                        setBoardPage(currentPage - 1);
+                      }}
+                    >
+                      ←
+                    </button>
+                    <span aria-live="polite">
+                      {currentPage + 1} / {pages}
+                    </span>
+                    <button
+                      aria-label="Next trip page"
+                      disabled={currentPage === pages - 1}
+                      onClick={() => {
+                        setPageDirection(1);
+                        setBoardPage(currentPage + 1);
+                      }}
+                    >
+                      →
+                    </button>
+                  </nav>
+                )}
+                {tripsLoaded && !trips.length && (
+                  <div className="blank-postcard">
+                    <h3>Your first trip goes here.</h3>
+                    <button onClick={() => setEditor({ kind: 'trip' })}>
+                      Plan your first trip
+                    </button>
+                  </div>
+                )}
+                {trips.length > 0 && !matchingTrips.length && (
+                  <p>
+                    No trips match “{tripSearch}”.{' '}
+                    <button className="text-button" onClick={() => setTripSearch('')}>
+                      Clear search
+                    </button>
+                  </p>
+                )}
+                <details className="board-tools">
+                  <summary>Import and export</summary>
+                  <section className="data-tools">
+                    <p>
+                      Trips are saved by Atlas and stay available when you reload or
+                      switch browsers on this computer. Export a backup to keep a separate
+                      copy.
+                    </p>
+                    <div className="actions">
+                      <button
+                        className="secondary"
+                        disabled={!trips.length || busy}
+                        onClick={exportTrips}
+                      >
+                        Export trips
+                      </button>
+                      <label className="file-label">
+                        Import JSON backup
+                        <input
+                          type="file"
+                          accept="application/json,.json"
+                          disabled={busy}
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file)
+                              void run(async () => {
+                                if (file.size > 900000)
+                                  throw new Error('Choose a file smaller than 900 KB.');
+                                await importTrips(await file.text());
+                              });
+                            event.target.value = '';
+                          }}
+                        />
+                      </label>
+                      {hasLocalTrips && (
+                        <button
+                          className="secondary"
+                          disabled={busy}
+                          onClick={() =>
+                            void run(async () => {
+                              const saved = LOCAL_TRIPS_KEYS.flatMap((key) => {
+                                const value: unknown = JSON.parse(
+                                  localStorage.getItem(key) || '[]',
+                                );
+                                if (!Array.isArray(value))
+                                  throw new Error(
+                                    'Saved browser trips are invalid. Export or recover them before importing.',
+                                  );
+                                return value;
+                              });
+                              await importTrips(JSON.stringify(saved));
+                            })
+                          }
+                        >
+                          Import browser trips
+                        </button>
+                      )}
+                    </div>
+                    <p className="muted">
+                      Old browser trips appear only on their original browser address.
+                      Otherwise, import an exported JSON file.
+                    </p>
+                  </section>
+                </details>
               </div>
-              <p className="muted">
-                Old browser trips appear only on their original browser address.
-                Otherwise, import an exported JSON file.
-              </p>
             </section>
-          </>
+          </div>
         ) : (
           <>
             <button
               className="back"
               onClick={() => {
-                clearRoute();
-                setTripId(null);
+                showBoard();
               }}
             >
               ← All trips
