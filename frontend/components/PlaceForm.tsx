@@ -65,6 +65,7 @@ export default function PlaceForm({
   function clearLocation() {
     setLatitude('');
     setLongitude('');
+    setMessage('');
   }
 
   const savedCategory = place?.category ?? 'Sightseeing';
@@ -152,10 +153,7 @@ export default function PlaceForm({
           required
           maxLength={150}
           value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            clearLocation();
-          }}
+          onChange={(e) => setName(e.target.value)}
           placeholder="A place worth stopping for"
         />
       </label>

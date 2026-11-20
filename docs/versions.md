@@ -6,7 +6,7 @@ The original commits are retained without rewriting history:
 - `93241f0`: recorded the Django backend direction.
 - `f0a5ea6`: formatted the previous code; behavior-preserving checkpoint.
 
-Subsequent commits add the Django backend, the Next.js frontend, and verification/documentation. Use `git log --oneline --decorate` to inspect their final commit IDs.
+Subsequent commits preserve the earlier Django work, add the active Next.js frontend and TypeScript/Express/SQLite backend, and expand verification/documentation. The October 16, 2026 frontend redesign adds the Atlas design system, destination photography, saved-trip search, compact planning controls, and responsive dialogs on `atlas/ui-redesign`, retaining the existing backend and API contracts. Use `git log --oneline --decorate` to inspect their final commit IDs.
 
 To inspect an earlier file without changing the current checkout:
 

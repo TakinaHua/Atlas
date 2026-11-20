@@ -26,6 +26,7 @@ export interface Trip {
   startDate?: string | null;
   endDate?: string | null;
   days: DayPlan[];
+  savedPlaces?: Destination[];
   createdAt: string;
   updatedAt: string;
 }

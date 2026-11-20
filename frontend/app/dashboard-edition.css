@@ -1,0 +1,376 @@
+/* Travel Editions: the journal shelf and its editors share the planner palette. */
+body:has(.edition) {
+  --edition-field-line: #91847b;
+  --edition-error: #7a302e;
+  --edition-error-paper: #f9ece6;
+}
+.dashboard {
+  max-width: 1200px;
+}
+.dashboard .hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.82fr);
+  gap: clamp(20px, 5vw, 72px);
+  padding: 0 0 24px;
+  border-bottom: 1px solid var(--edition-rule);
+}
+.dashboard .hero h1 {
+  font-size: clamp(40px, 5.2vw, 72px);
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+  margin: 0 0 16px;
+}
+.dashboard .hero p {
+  max-width: 35ch;
+  margin: 0 0 20px;
+}
+.dashboard .hero-photo {
+  height: clamp(160px, 17vw, 220px);
+  border-radius: 4px;
+}
+.dashboard .photo-caption {
+  inset: auto 12px 12px auto;
+  background: var(--edition-paper);
+  color: var(--edition-ink);
+  padding: 4px 9px;
+  border-radius: 2px;
+}
+.dashboard .photo-caption small {
+  margin: 0;
+  font-size: 12px;
+}
+.dashboard button,
+.edition-dialog button {
+  border-radius: 5px;
+}
+.dashboard .hero button,
+.edition-dialog button[type='submit'] {
+  background: var(--edition-wine);
+  color: var(--edition-card);
+  padding: 12px 20px;
+}
+.dashboard .hero button:hover,
+.edition-dialog button[type='submit']:hover {
+  background: var(--edition-ink);
+}
+.dashboard .section-heading {
+  margin: 24px 0 8px;
+}
+.dashboard h2,
+.dashboard .card-body h3,
+.dashboard .discovery h3,
+.dashboard .data-tools h3,
+.edition-dialog h2 {
+  font-family: var(--edition-display);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+.dashboard h2 {
+  font-size: 30px;
+}
+.dashboard .trip-search {
+  max-width: 380px;
+  margin: 10px 0 16px;
+}
+.dashboard .trip-search input,
+.edition-dialog :is(input, select, textarea) {
+  background: var(--edition-card);
+  border: 1px solid var(--edition-field-line);
+  border-radius: 4px;
+  color: var(--edition-ink);
+}
+.dashboard input::placeholder,
+.edition-dialog :is(input, textarea)::placeholder {
+  color: var(--edition-muted);
+  opacity: 1;
+}
+.dashboard .trip-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+.dashboard .trip-card {
+  display: grid;
+  grid-template-columns: clamp(100px, 16vw, 182px) minmax(0, 1fr);
+  padding: 16px 0;
+  gap: 20px;
+  border: 0;
+  border-top: 1px solid var(--edition-rule);
+  border-radius: 0;
+  box-shadow: none;
+}
+.dashboard .card-art {
+  height: 140px;
+  min-width: 0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.dashboard .card-body {
+  padding: 0;
+  align-self: center;
+}
+.dashboard .card-body h3 {
+  font-size: 26px;
+  margin: 4px 0;
+}
+.dashboard .card-body p {
+  margin: 0;
+}
+.dashboard .card-body .actions {
+  justify-content: flex-start;
+  margin: 8px 0 0;
+}
+.dashboard .trip-card .danger {
+  background: transparent;
+}
+.dashboard .photo-badge {
+  border-radius: 3px;
+  top: 6px;
+  left: 6px;
+}
+.dashboard .samples-title {
+  margin: 28px 0 8px;
+  font-size: 23px;
+}
+.dashboard .discovery {
+  margin: 0;
+  gap: 20px;
+}
+.dashboard .discovery article {
+  padding: 14px 0;
+  border: 0;
+  border-top: 1px solid var(--edition-rule);
+  border-radius: 0;
+}
+.dashboard .discovery h3 {
+  font-size: 20px;
+}
+.dashboard .sample-button {
+  min-height: 44px;
+}
+.dashboard .data-tools {
+  margin-top: 24px;
+  border-top: 1px solid var(--edition-rule);
+  background: transparent;
+  padding: 20px 0;
+  border-radius: 0;
+}
+.dashboard .data-tools h3 {
+  font-size: 23px;
+}
+.dashboard .file-label input {
+  width: 100%;
+  max-width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.dashboard input::file-selector-button {
+  margin: 4px 8px 0 0;
+  padding: 9px 12px;
+  border: 1px solid var(--edition-field-line);
+  background: var(--edition-card);
+  color: var(--edition-ink);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.edition-dialog {
+  width: min(540px, 94vw);
+  color: var(--edition-ink);
+  background: var(--edition-paper);
+  border-color: var(--edition-rule);
+  border-radius: 8px;
+}
+.edition-dialog .dialog-heading {
+  align-items: center;
+  border-bottom: 1px solid var(--edition-rule);
+  padding-bottom: 12px;
+}
+.edition-dialog h2 {
+  font-size: 32px;
+  margin: 0;
+}
+.edition-dialog label {
+  font-size: 14px;
+}
+.edition-dialog .destination-results,
+.edition-dialog .place-search-results li button {
+  background: var(--edition-card);
+  border-radius: 4px;
+}
+.edition-dialog .destination-results li:hover,
+.edition-dialog .destination-results li[aria-selected='true'],
+.edition-dialog .place-search-results li button:hover {
+  background: var(--edition-wash);
+  color: var(--edition-ink);
+}
+.edition-dialog summary {
+  font-size: 14px;
+  min-height: 36px;
+}
+.edition-dialog .actions {
+  border-color: var(--edition-rule);
+}
+.edition .empty,
+.edition .loading-state {
+  background: var(--edition-card);
+  color: var(--edition-muted);
+  border: 1px solid var(--edition-rule);
+  border-radius: 4px;
+  padding: 24px;
+  text-align: left;
+}
+.edition .notice {
+  background: var(--edition-card);
+  border: 1px solid var(--edition-rule);
+  border-left: 3px solid var(--edition-wine);
+}
+.edition .error,
+.edition-dialog .error {
+  color: var(--edition-error);
+  background: var(--edition-error-paper);
+  border: 1px solid var(--edition-rule);
+  border-left: 3px solid var(--edition-error);
+}
+.edition .loading-dot {
+  border-color: var(--edition-rule);
+  border-top-color: var(--edition-wine);
+}
+body:has(.edition) :focus-visible {
+  outline: 3px solid var(--edition-wine);
+  outline-offset: 3px;
+}
+@media (max-width: 650px) {
+  .dashboard .hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .dashboard .hero-photo {
+    height: 130px;
+  }
+  .dashboard .trip-card {
+    grid-template-columns: minmax(84px, 27%) minmax(0, 1fr);
+    gap: 12px;
+  }
+  .dashboard .card-art {
+    height: 120px;
+  }
+  .dashboard .card-body h3 {
+    font-size: 22px;
+  }
+  .dashboard .trip-card button {
+    min-height: 44px;
+  }
+  .dashboard .discovery {
+    gap: 0;
+  }
+  .dashboard .data-tools .actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .edition-dialog {
+    padding: 18px;
+  }
+}
+.edition-dialog .place-search-results button {
+  color: var(--edition-ink);
+  text-align: left;
+  min-height: 44px;
+}
+.edition-dialog .destination-results [role='option'] {
+  min-height: 44px;
+}
+.edition-dialog .destination-search .destination-results {
+  scroll-padding-block: 4px;
+}
+.dashboard .trip-card .card-body .eyebrow {
+  font: inherit;
+  font-size: 12px;
+  color: var(--edition-muted);
+}
+
+@media (max-width: 900px), (pointer: coarse) {
+  .edition-dialog :is(input, textarea, select),
+  .dashboard .trip-search input {
+    font-size: 16px;
+  }
+  .edition-dialog :is(button, summary),
+  .edition .data-tools button,
+  .dashboard .trip-card button,
+  .edition .days button,
+  .edition .edition-days-heading select {
+    min-height: 44px;
+  }
+  .edition-dialog .close-button {
+    min-width: 44px;
+  }
+  .edition-dialog .muted,
+  .dashboard .card-body p,
+  .dashboard .data-tools p {
+    font-size: 14px;
+  }
+}
+@media (max-width: 420px) {
+  .dashboard .trip-card {
+    grid-template-columns: 80px minmax(0, 1fr);
+  }
+  .dashboard .trip-card .actions {
+    gap: 4px;
+    align-items: flex-start;
+  }
+  .dashboard .file-label {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .edition-dialog .form-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Shared control states across the shelf, itinerary, and native editors. */
+body:has(.edition)
+  :is(.edition, .edition-dialog, .topbar)
+  button:not(.stop-title, .stop-number, .map-pin) {
+  border-radius: 5px;
+}
+body:has(.edition) :is(.edition, .edition-dialog) .secondary:hover:not(:disabled),
+.edition .route-box > button:hover:not(:disabled),
+.edition .text-button:hover:not(:disabled) {
+  background: var(--edition-wash);
+  color: var(--edition-ink);
+  border-color: var(--edition-rule);
+}
+.edition .days .active:hover:not(:disabled),
+.edition .itinerary .section-heading button:hover:not(:disabled),
+.edition-dialog fieldset > button:hover:not(:disabled),
+.edition .walking-demo button:hover:not(:disabled) {
+  background: var(--edition-ink);
+  color: var(--edition-card);
+}
+.edition .route-box > button {
+  border-color: var(--edition-field-line);
+  background: var(--edition-card);
+}
+.edition-dialog .dialog-heading {
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.edition-dialog .dialog-heading h2 {
+  overflow-wrap: anywhere;
+}
+.edition-dialog .close-button {
+  flex: 0 0 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+}
+.edition-dialog .actions {
+  gap: 8px;
+}
+.edition .route-summary > :last-child,
+.edition .route-box > :last-child {
+  margin-bottom: 0;
+}
+.edition .error button.secondary {
+  margin: 4px 0;
+}

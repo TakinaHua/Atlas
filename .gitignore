@@ -27,3 +27,6 @@ artifacts/
 /frontend/.next-browser-tests/
 
 /frontend/.next-production-check-*/
+
+# Isolated local UI review output
+/frontend/.next-ui-review/

@@ -32,6 +32,7 @@ export interface Trip {
   endDate: string;
   revision: number;
   days: Day[];
+  savedPlaces?: Place[];
 }
 export interface CalculatedRoute {
   geometry: { type: 'LineString'; coordinates: [number, number][] };

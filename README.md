@@ -1,6 +1,6 @@
 # Atlas — Intelligent Trip Planner
 
-A trip planner using TypeScript, Next.js, Leaflet, and Node.js + Express. Create trips, switch between days, add/edit/remove/reorder places, and select numbered markers on an interactive map. Desktop-first, with a stacked layout on mobile.
+A trip planner using TypeScript, Next.js, Leaflet, and Node.js + Express. Create trips, switch between days, add/edit/remove/reorder places, and select numbered markers on an interactive map. The responsive frontend combines a bright, photo-led dashboard with a compact itinerary workspace, using custom CSS and Atlas’s forest-green accent.
 
 ## Run locally
 
@@ -13,13 +13,21 @@ npm run dev
 
 Open **http://127.0.0.1:3000**. Keep the terminal running; Ctrl+C stops both servers. The frontend runs on port 3000 and the TypeScript Express API on 127.0.0.1:8000. `/api/*` is proxied through the frontend. The API persists trip/day/destination CRUD in SQLite; the itinerary UI saves through the API. If either port is occupied, stop your other Atlas instance first. Server trips are shared across browsers connected to this local API. Old browser-only trips remain on their original browser address until explicitly imported.
 
+## Current frontend
+
+The frontend uses Next.js App Router, React, TypeScript, custom CSS, and Leaflet. The By the Rivers homepage presents featured itineraries and a saved-trip pinboard. Journey Studio uses a cork day board and an interactive map for editing trips.
+
+See the [frontend guide](docs/frontend.md) for components, interactions, responsive behavior, and verification, and [DESIGN.md](DESIGN.md) for visual rules and photo credits. The active implementation is in `frontend/`; archived HTML/vanilla files are historical references.
+
 ## Review the frontend
 
-- Choose **Explore a sample trip** to explore an unsaved three-day Hawaii itinerary with two mapped stops. Choose **Add to my trips** to keep it, or **Plan a trip** to start your own.
+- Choose **Preview the walk** on the Pittsburgh cover or **Preview the coastal itinerary** on the Oʻahu cover. Choose **Add to my trips** to keep a sample or **Plan a trip** to start your own.
 - Search a U.S. city or state in the trip form and select a suggestion to center the map. Text-only destinations remain supported. See [destination search](docs/destination-search.md).
 - Open a trip, choose a day, and search for a place/address. Select a result to fill its coordinates, or enter details manually.
-- Edit, reorder, move between days, select, or remove stops. Use **Calculate driving route** for road geometry and estimated time; every stop needs a map location.
-- Return to **My trips** to switch trips. Changes survive refresh, server restarts, and opening another browser.
+- Scroll the board to browse whole day columns. Drag a card to reorder it or move it to another day. Use **Add day** on the final column to extend the trip.
+- The map follows the leftmost day by default. Use **Map settings** to choose which days or saved places to show. **Fit trip** shows all scheduled stops. Use **Calculate driving route** on a day with at least two stops that all have map locations.
+- Located stops can show a credited photo automatically. When the card uses a photo of a nearby landmark, the caption identifies it. Stops without a usable photo appear as pinned notes.
+- Return to **My trips** to switch trips. **Search your trips** filters saved cards by trip name or destination without changing saved data. Changes survive refresh, server restarts, and opening another browser.
 - Export JSON backups, or choose **Import browser trips** to copy older `atlas.preview.trips.v1` and `atlas.trips.v1` records into SQLite. Duplicate IDs are skipped; the original browser data is never removed.
 
 Map tiles require internet and use OpenStreetMap. Markers and itinerary editing still work if tiles fail. Sample content is illustrative, not current travel advice.
@@ -33,7 +41,9 @@ The previous JavaScript preview scaffold, Python backend, and Django database re
 ## Files and checks
 
 - `frontend/app/page.tsx`: dashboard, trip/day navigation, and place editing.
-- `frontend/components/`: forms, accessible dialogs, and Leaflet map.
+- `frontend/app/globals.css`: shared visual tokens, layout, controls, states, and responsive rules.
+- `frontend/components/`: forms, native accessible dialogs, destination photography with fallbacks, and Leaflet map.
+- `frontend/public/images/`: locally served licensed destination photographs; credits in `DESIGN.md`.
 - `frontend/lib/remote-api.ts`: same-origin API requests and user-facing error handling. `preview-store.ts` is retained as inactive prior work.
 - `backend/src/`: active TypeScript REST API with SQLite persistence. See [backend setup and manual tests](backend/README-phase1.md).
 - `tests/`: browser integration checks; previous backend-dependent browser tests are preserved in `archive/`.
@@ -56,7 +66,7 @@ Stops can now move between itinerary days while preserving their details and coo
 
 Ordered driving routes are available through OSRM, with map geometry, distance, and estimated time. See [road-routing setup and tests](docs/road-routing.md). An independent, limited Pittsburgh walking-graph demonstration is also available.
 
-Choose **Explore walking demo** to try Atlas’s own Dijkstra implementation. See [algorithm, dataset and limitations](docs/dijkstra-demo.md).
+Choose **Preview the walk** on the Pittsburgh cover to try Atlas’s own Dijkstra implementation. See [algorithm, dataset and limitations](docs/dijkstra-demo.md).
 
 For the final prototype review, follow [the acceptance checklist](docs/prototype-acceptance.md). `npm run test:production` builds an isolated production frontend, uses a temporary database and available local ports, restarts the compiled API, and verifies persistence/proxy/local routing. It does not contact search or routing providers.
 

@@ -103,3 +103,10 @@ export function searchDestinations(query: string, limit = 10): DestinationLocati
     .slice(0, limit)
     .map((r) => publicLocation(r.record));
 }
+
+export function destinationById(id: string): DestinationLocation {
+  const record = byId.get(id);
+  if (!record)
+    throw new ApiError(400, 'VALIDATION_ERROR', 'Select a destination from the catalog.');
+  return publicLocation(record);
+}

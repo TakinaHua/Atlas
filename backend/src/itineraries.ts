@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { ApiError, TripStore } from './store.js';
-import type { Trip } from './models.js';
+import type { Destination, Trip } from './models.js';
 
 const id = z
   .string()
@@ -33,6 +33,7 @@ const fields = {
   destination: z.string().trim().max(200),
   startDate: z.iso.date(),
   endDate: z.iso.date(),
+  savedPlaces: z.array(place).max(120).optional(),
   days: z
     .array(z.object({ date: z.iso.date(), places: z.array(place).max(30) }).strict())
     .min(1)
@@ -53,7 +54,10 @@ const tripSchema = z
         code: 'custom',
         message: 'Trip days must match the date range (1–60 days).',
       });
-    const ids = trip.days.flatMap((day) => day.places.map((p) => p.id));
+    const ids = [
+      ...trip.days.flatMap((day) => day.places),
+      ...(trip.savedPlaces ?? []),
+    ].map((p) => p.id);
     if (new Set(ids).size !== ids.length)
       ctx.addIssue({
         code: 'custom',
@@ -61,6 +65,28 @@ const tripSchema = z
       });
   });
 type ItineraryInput = z.infer<typeof tripSchema>;
+
+function serializePlace(p: Destination) {
+  return {
+    id: p.id,
+    name: p.name,
+    address: p.address ?? '',
+    category: p.category ?? '',
+    notes: p.notes ?? '',
+    latitude: p.latitude,
+    longitude: p.longitude,
+  };
+}
+
+function savedPlaceKey(place: Destination) {
+  const normalize = (value: string) =>
+    value.normalize('NFKC').toLowerCase().trim().replace(/\s+/g, ' ');
+  const location =
+    place.latitude === null || place.longitude === null
+      ? normalize(place.address ?? '')
+      : [place.latitude.toFixed(5), place.longitude.toFixed(5)].join(',');
+  return JSON.stringify([normalize(place.name), location]);
+}
 
 function datesBetween(start: string, end: string): string[] {
   const count = Math.round((Date.parse(end) - Date.parse(start)) / 86400000) + 1;
@@ -88,17 +114,10 @@ export function toItinerary(trip: Trip) {
     startDate,
     endDate,
     revision: trip.revision ?? 1,
+    savedPlaces: (trip.savedPlaces ?? []).map(serializePlace),
     days: datesBetween(startDate, endDate).map((date, i) => ({
       date,
-      places: (trip.days[i]?.destinations ?? []).map((p) => ({
-        id: p.id,
-        name: p.name,
-        address: p.address ?? '',
-        category: p.category ?? '',
-        notes: p.notes ?? '',
-        latitude: p.latitude,
-        longitude: p.longitude,
-      })),
+      places: (trip.days[i]?.destinations ?? []).map(serializePlace),
     })),
   };
 }
@@ -117,6 +136,18 @@ function applyItinerary(trip: Trip, input: ItineraryInput): void {
       'VALIDATION_ERROR',
       'Remove the stops on excluded dates before shortening this trip.',
     );
+  // Older clients can omit the collection without discarding newer saved places.
+  const savedPlaces = input.savedPlaces ?? previous.savedPlaces;
+  const scheduledIds = new Set(input.days.flatMap((day) => day.places.map((p) => p.id)));
+  if (savedPlaces.some((place) => scheduledIds.has(place.id)))
+    throw new ApiError(
+      400,
+      'VALIDATION_ERROR',
+      'Place IDs must be unique within a trip.',
+    );
+  if (new Set(savedPlaces.map(savedPlaceKey)).size !== savedPlaces.length)
+    throw new ApiError(400, 'VALIDATION_ERROR', 'That place is already saved for later.');
+  trip.savedPlaces = savedPlaces;
   trip.name = input.name;
   if (input.destinationLocation !== undefined)
     trip.destinationLocation = resolveLocation(input.destinationLocation);

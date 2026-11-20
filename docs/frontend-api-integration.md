@@ -1,5 +1,7 @@
 # Frontend API integration
 
+The current [frontend](frontend.md) adds photo-led discovery, saved-trip filtering, compact itinerary controls, and refreshed dialogs while preserving the API and revision behavior below.
+
 ## Run and manually verify
 
 From the Atlas root, run `npm install` and `npm run dev`. Open `http://127.0.0.1:3000`. The TypeScript API runs on port 8000. Stop an older development instance before starting another.
@@ -32,7 +34,7 @@ Imports preserve trip/place IDs, reset the new server revision to 1, skip IDs al
 
 Legacy Phase 1 trips without dates receive display defaults from their stored dates or creation date; missing day entries display as empty days. Reads never change stored records. Existing day IDs/title/notes are preserved when saving the same dates. The date range expands for any extra existing days so no stops are silently hidden. Very long manually created Phase 1 trips remain subject to the UI's 60-day editing limit.
 
-Revision mismatches return 409. Validation failures return 400. Existing nested `/api/trips` changes increment the same revision, so they also invalidate stale UI snapshots. No route calculation, geocoding, Django-data migration, or account system is included.
+Revision mismatches return 409. Validation failures return 400. Existing nested `/api/trips` changes increment the same revision, so they also invalidate stale UI snapshots. Search and routing use separate endpoints described in [destination search](destination-search.md), [place search](place-search.md), [road routing](road-routing.md), and [the walking demo](dijkstra-demo.md). They do not change this itinerary persistence contract. Automatic Django-data migration and an account system are not included.
 
 ## Verification
 

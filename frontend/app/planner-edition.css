@@ -1,0 +1,413 @@
+/* Travel Editions | daily itinerary and its map */
+:root {
+  --edition-paper: #f8f5ef;
+  --edition-card: #fffcf7;
+  --edition-ink: #302b28;
+  --edition-wine: #783f43;
+  --edition-wash: #f2e6e1;
+  --edition-rule: #d8cfc5;
+  --edition-muted: #665b55;
+  --edition-display: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+}
+body:has(.edition) {
+  background: var(--edition-paper);
+}
+.edition,
+body:has(.edition) :is(.topbar, dialog) {
+  --green: var(--edition-wine);
+  --ink: var(--edition-ink);
+  --soft: var(--edition-paper);
+  --line: var(--edition-rule);
+  --muted: var(--edition-muted);
+}
+body:has(.edition) .topbar {
+  height: 64px;
+  border-color: var(--edition-rule);
+}
+body:has(.edition) .brand,
+.edition h1,
+.edition h2,
+.edition .route-box h3 {
+  font-family: var(--edition-display);
+  font-weight: 500;
+}
+body:has(.edition) .brand-tagline {
+  display: none;
+}
+.edition {
+  color: var(--edition-ink);
+  max-width: 1512px;
+}
+.edition .trip-overview {
+  padding-bottom: 20px;
+  margin: 0;
+  border-bottom: 1px solid var(--edition-rule);
+}
+.edition .trip-overview > .destination-photo {
+  width: clamp(88px, 12vw, 164px);
+  height: 100px;
+  border-radius: 3px;
+}
+.edition .trip-overview h1 {
+  font-size: clamp(32px, 4vw, 60px);
+  line-height: 1.04;
+  letter-spacing: -0.04em;
+}
+.edition .eyebrow,
+.edition .days small {
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.edition .edition-days-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+}
+.edition-days-heading h2 {
+  font-size: 24px;
+  margin: 0;
+}
+.edition-days-heading label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.edition-days-heading select {
+  width: auto;
+  margin: 0;
+}
+.edition .days {
+  padding: 8px 3px 12px;
+  border-color: var(--edition-rule);
+}
+.edition .days button {
+  border-radius: 5px;
+  min-width: 112px;
+  line-height: 1.4;
+}
+.edition .days .secondary {
+  background: var(--edition-card);
+  border-color: var(--edition-rule);
+}
+.edition .days .day-count {
+  font-size: 12px;
+  opacity: 1;
+}
+.edition .planner {
+  grid-template-columns: minmax(0, 0.96fr) minmax(0, 1.04fr);
+  gap: clamp(20px, 3vw, 48px);
+}
+.edition .planner .section-heading {
+  margin: 16px 0;
+  min-height: 52px;
+}
+.edition .planner h2 {
+  font-size: clamp(24px, 2.4vw, 36px);
+}
+.edition .stops > li {
+  padding: 16px;
+  margin-bottom: 10px;
+  background: var(--edition-card);
+  border-radius: 5px;
+}
+.edition .stops > li.selected {
+  border-color: var(--edition-wine);
+  background: var(--edition-wash);
+  box-shadow: inset 4px 0 var(--edition-wine);
+}
+.edition .stop-title {
+  min-height: 44px;
+}
+.edition .stop-title strong {
+  font: 500 21px/1.2 var(--edition-display);
+}
+.edition .stop-number {
+  background: transparent;
+  border: 1px solid var(--edition-rule);
+  color: var(--edition-ink);
+}
+.edition .selected .stop-number,
+.edition .map-pin.selected {
+  background: var(--edition-wine);
+  color: var(--edition-card);
+  border-color: var(--edition-card);
+}
+.edition .map-pin {
+  background: var(--edition-card);
+  color: var(--edition-ink);
+  border: 2px solid var(--edition-wine);
+}
+.edition .map-pin.selected {
+  outline: 2px solid var(--edition-wine);
+}
+.edition .stop-tools {
+  border-top: 1px solid var(--edition-rule);
+  padding-top: 6px;
+  margin-top: 9px;
+}
+.edition .stop-tools :is(button, select) {
+  min-height: 44px;
+}
+.edition .stop-tools button {
+  min-width: 44px;
+}
+.edition .map {
+  border-radius: 5px;
+  height: clamp(350px, 58vh, 680px);
+}
+.edition .route-box {
+  background: var(--edition-card);
+  border: 1px solid var(--edition-rule);
+  border-radius: 5px;
+}
+.edition .route-box h3 {
+  font-size: 24px;
+}
+.edition .route-summary {
+  background: var(--edition-wash);
+}
+.edition .sample-notice {
+  background: var(--edition-wash);
+  color: var(--edition-ink);
+}
+.edition .edition-jump {
+  display: none;
+}
+@media (max-width: 767px) {
+  .edition .planner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .edition .edition-jump {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .edition .map {
+    height: clamp(320px, 55dvh, 520px);
+  }
+  .edition [id] {
+    scroll-margin-top: 12px;
+  }
+}
+@media (max-width: 650px) {
+  .edition .trip-overview {
+    gap: 12px;
+  }
+  .edition .trip-overview > .destination-photo {
+    width: 72px;
+    height: 72px;
+  }
+  .edition .trip-overview h1 {
+    font-size: 32px;
+  }
+  .edition .days {
+    scroll-snap-type: x proximity;
+  }
+  .edition .days button {
+    scroll-snap-align: start;
+  }
+  .edition .stops > li {
+    padding: 12px;
+  }
+  .edition .edition-days-heading label {
+    font-size: 12px;
+  }
+}
+
+/* One selected date governs the two working panels below it. */
+.edition .edition-days-heading {
+  margin-top: 20px;
+}
+.edition .edition-days-heading h2 {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+.edition .days {
+  margin: 4px 0 0;
+  padding: 8px 4px 16px;
+  gap: 8px;
+}
+.edition .days button {
+  padding: 8px 12px;
+}
+.edition .workspace-day {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: clamp(20px, 2.6vw, 36px) 0 8px;
+}
+.edition .workspace-day .eyebrow {
+  margin: 0 0 4px;
+}
+.edition .workspace-day h2 {
+  font-size: clamp(28px, 3vw, 42px);
+  margin: 0;
+  line-height: 1.12;
+}
+.edition .planner {
+  column-gap: clamp(20px, 2.8vw, 40px);
+}
+.edition .planner .section-heading {
+  min-height: 48px;
+  margin: 0 0 12px;
+  border-bottom: 1px solid var(--edition-rule);
+  padding-bottom: 8px;
+}
+.edition .planner .section-heading h3 {
+  font: 500 22px/1.2 var(--edition-display);
+  margin: 0;
+}
+.edition .workspace-count {
+  font: 500 13px/1.4 system-ui;
+  color: var(--edition-muted);
+  vertical-align: middle;
+  margin-inline-start: 4px;
+}
+.edition .stops {
+  display: grid;
+  gap: 12px;
+}
+.edition .stops > li {
+  margin: 0;
+}
+.edition .stop-tools {
+  margin-inline-start: 40px;
+  padding-top: 8px;
+  margin-top: 12px;
+}
+.edition .stop-tools .move-day {
+  margin-inline-start: 0;
+}
+.edition .route-box {
+  margin-top: 24px;
+}
+@media (max-width: 767px) {
+  .edition .planner {
+    row-gap: 28px;
+  }
+}
+@media (max-width: 650px) {
+  .edition .workspace-day {
+    margin-top: 20px;
+    align-items: flex-end;
+  }
+  .edition .workspace-day h2 {
+    font-size: 28px;
+  }
+  .edition .days button {
+    min-width: 92px;
+  }
+  .edition .stop-tools {
+    margin-inline-start: 0;
+  }
+}
+
+.edition .compact-planner-nav {
+  display: none;
+}
+.edition .fit-day {
+  min-height: 44px;
+  margin-top: 8px;
+}
+.edition .map:focus-visible {
+  outline-offset: 0;
+}
+@media (min-width: 768px) and (max-width: 1100px) {
+  .edition:not(.dashboard) {
+    padding-inline: clamp(20px, 3vw, 32px);
+  }
+  .edition .planner {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 20px;
+  }
+  .edition .map-panel {
+    position: sticky;
+    top: 12px;
+  }
+  .edition .map {
+    height: clamp(300px, 55dvh, 500px);
+  }
+  .edition .stop-tools {
+    margin-inline-start: 0;
+  }
+}
+@media (max-width: 767px) {
+  .edition .compact-planner-nav {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--edition-paper);
+    border-block: 1px solid var(--edition-rule);
+    margin: 12px 0 16px;
+  }
+  .edition .compact-planner-nav a {
+    flex: 1;
+    display: grid;
+    place-items: center;
+    min-height: 44px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .edition .compact-planner-nav a:focus-visible {
+    outline-offset: -4px;
+  }
+  .edition [id],
+  .edition .planner :focus-visible {
+    scroll-margin-block-start: 58px;
+  }
+  .edition .workspace-day {
+    align-items: center;
+  }
+  .edition .map {
+    height: clamp(240px, 55dvh, 480px);
+  }
+  .edition .move-day {
+    flex-wrap: wrap;
+  }
+  .edition .edition-days-heading {
+    flex-wrap: wrap;
+  }
+  .edition .stops .notes,
+  .edition .stops .stop-meta p,
+  .edition .route-box p,
+  .edition .map-panel > .muted {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .edition .stop-tools select,
+  .edition .edition-days-heading select {
+    font-size: 16px;
+    max-width: 100%;
+  }
+  .edition .planner .section-heading button {
+    white-space: nowrap;
+  }
+}
+@media (pointer: coarse), (max-width: 900px) {
+  .edition .leaflet-control-zoom a {
+    width: 44px;
+    height: 44px;
+    line-height: 44px;
+  }
+  .edition .map-pin::after {
+    content: '';
+    position: absolute;
+    inset: -9px;
+    border-radius: 50%;
+  }
+  .edition .stop-tools button,
+  .edition .move-day {
+    font-size: 14px;
+  }
+}
