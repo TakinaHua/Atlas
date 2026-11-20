@@ -1,5 +1,7 @@
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useJourneyDrag } from './useJourneyDrag';
 import JourneyCard, {
   StudioIcon,
   type PlaceAction,
@@ -20,16 +22,14 @@ const TripMap = dynamic(() => import('./TripMap'), {
 });
 
 type Panel = 'itinerary' | 'map' | 'saved';
-type MapView = 'day' | 'all' | 'saved';
-type Dragged = { source: PlaceLocation; place: Place };
-type DropTarget = { date: PlaceLocation; before?: string };
+type MapView = 'day' | 'all' | 'custom' | 'saved';
 const noPlaces: Place[] = [];
 const motion = (): ScrollBehavior =>
   matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth';
 
-function mapStops(trip: Trip, date?: string): MapStop[] {
+function mapStops(trip: Trip, dates?: ReadonlySet<string>): MapStop[] {
   return trip.days.flatMap((day, dayIndex) =>
-    date && day.date !== date
+    dates && !dates.has(day.date)
       ? []
       : day.places.flatMap((place, index) =>
           place.latitude === null || place.longitude === null
@@ -55,6 +55,7 @@ export default function JourneyStudio({
   changeDay,
   selectPlace,
   openPlace,
+  addDay,
   editTrip,
   deleteTrip,
   saveSample,
@@ -69,29 +70,36 @@ export default function JourneyStudio({
   changeDay: (date: string) => void;
   selectPlace: (id: string, date: PlaceLocation) => void;
   openPlace: (date: PlaceLocation, place?: Place) => void;
+  addDay: () => void;
   editTrip: () => void;
   deleteTrip: () => void;
   saveSample: () => void;
   placeAction: PlaceAction;
   routeState: JourneyRouteState;
 }) {
-  const [view, setView] = useState<'card' | 'list'>('card');
   const [panel, setPanel] = useState<Panel>('itinerary');
   const [mapView, setMapView] = useState<MapView>('day');
+  const [mapDays, setMapDays] = useState<string[]>([]);
   const [mapFit, setMapFit] = useState(0);
   const [savedOpen, setSavedOpen] = useState(false);
   const hoverMarker = useRef<((id: string | null) => void) | null>(null);
   const setHovered = useCallback((id: string | null) => hoverMarker.current?.(id), []);
-  const [dropTarget, setDropTarget] = useState<DropTarget>();
-  const dragged = useRef<Dragged | null>(null);
   const revealCard = useRef<string | null>(null);
   const focusCard = useRef(false);
   const board = useRef<HTMLDivElement>(null);
+  const scrollTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const dayIndex = trip.days.findIndex((day) => day.date === date);
   const day = trip.days[dayIndex];
   const saved = trip.savedPlaces ?? noPlaces;
   const selectedSaved = saved.some((place) => place.id === selectedId);
   const mapDate = mapView === 'day' ? date : undefined;
+  const mapsCurrentDay =
+    mapView === 'day' ||
+    mapView === 'all' ||
+    (mapView === 'custom' && mapDays.includes(date));
+  const showDayNumbers = mapView === 'all' || mapView === 'custom';
+  const lastDay = trip.days.at(-1);
+  const canAddDay = trip.days.length < 60 && trip.endDate < '9999-12-31';
   const visibleStops = useMemo(() => {
     if (mapView === 'saved')
       return saved.flatMap((place) =>
@@ -99,27 +107,56 @@ export default function JourneyStudio({
           ? []
           : [{ place, date: null }],
       );
-    return mapStops(trip, mapDate);
-  }, [trip, mapView, mapDate, saved]); // Scrolling between days preserves the full-trip viewport.
+    const dates = mapDate
+      ? new Set([mapDate])
+      : mapView === 'custom'
+        ? new Set(mapDays)
+        : undefined;
+    return mapStops(trip, dates);
+  }, [trip, mapView, mapDate, mapDays, saved]); // Scrolling between days preserves the full-trip viewport.
 
-  const scrollToDay = useCallback((nextDate: string, onlyIfHidden = false) => {
+  const scrollToDay = useCallback((nextDate: string) => {
     const scroller = board.current;
     const column = scroller?.querySelector<HTMLElement>(
       `[data-board-date="${nextDate}"]`,
     );
     if (!scroller || !column) return;
-    const position = column.offsetLeft;
-    const visible =
-      column.offsetLeft >= scroller.scrollLeft &&
-      column.offsetLeft + column.offsetWidth <=
-        scroller.scrollLeft + scroller.clientWidth;
-    if (!onlyIfHidden || !visible)
-      scroller.scrollTo({ left: position - 16, behavior: motion() });
+    const inset = parseFloat(getComputedStyle(scroller).scrollPaddingInlineStart);
+    const position = column.offsetLeft - inset;
+    if (Math.abs(position - scroller.scrollLeft) > 1)
+      scroller.scrollTo({ left: position, behavior: 'instant' });
   }, []);
 
   useEffect(() => {
-    scrollToDay(date, true);
-  }, [date, view, panel, scrollToDay]);
+    scrollToDay(date);
+    return () => clearTimeout(scrollTimer.current);
+  }, [date, panel, trip.days.length, scrollToDay]);
+
+  function followBoard() {
+    clearTimeout(scrollTimer.current);
+    if (drag.isActive()) return;
+    scrollTimer.current = setTimeout(() => {
+      const scroller = board.current;
+      if (!scroller?.clientWidth || drag.isActive()) return;
+      const left =
+        scroller.scrollLeft +
+        parseFloat(getComputedStyle(scroller).scrollPaddingInlineStart);
+      let nearest: HTMLElement | undefined;
+      for (const column of scroller.querySelectorAll<HTMLElement>('[data-board-date]')) {
+        if (
+          nearest &&
+          Math.abs(column.offsetLeft - left) >= Math.abs(nearest.offsetLeft - left)
+        )
+          break;
+        nearest = column;
+      }
+      const next = nearest?.dataset.boardDate;
+      if (next && next !== date) {
+        setHovered(null);
+        changeDay(next);
+      }
+    }, 140);
+  }
 
   useEffect(() => {
     const id = revealCard.current;
@@ -161,38 +198,9 @@ export default function JourneyStudio({
         ?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: motion() });
   }
 
-  function endDrag() {
-    dragged.current = null;
-    setDropTarget(undefined);
-  }
-
-  function handleDrop(event: DragEvent, target: PlaceLocation, before?: string) {
-    const entry = dragged.current;
-    if (!entry || busy) return;
-    const capacityReached =
-      entry.source !== target &&
-      (target === null
-        ? saved.length >= 120
-        : trip.days.find((day) => day.date === target)?.places.length === 30);
-    event.stopPropagation();
-    if (
-      capacityReached ||
-      entry.place.id === before ||
-      (entry.source === null && target === null)
-    ) {
-      event.dataTransfer.dropEffect = 'none';
-      setDropTarget(undefined);
-      return;
-    }
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-    if (event.type === 'drop') {
-      endDrag();
-      action(entry.source, entry.place, target, before);
-    } else if (dropTarget?.date !== target || dropTarget?.before !== before) {
-      setDropTarget({ date: target, before });
-    }
-  }
+  const restoreDay = useCallback(() => scrollToDay(date), [date, scrollToDay]);
+  const drag = useJourneyDrag({ board, trip, busy, move: action, restore: restoreDay });
+  const dropTarget = drag.target;
 
   function action(...args: Parameters<PlaceAction>) {
     const target = args[2];
@@ -208,7 +216,6 @@ export default function JourneyStudio({
     setHovered(null);
     setPanel(next);
     if (next === 'saved') setSavedOpen(true);
-    if (next === 'itinerary') scrollToDay(date, true);
   }
 
   function returnToCard() {
@@ -217,12 +224,7 @@ export default function JourneyStudio({
     showPanel(selectedSaved ? 'saved' : 'itinerary');
   }
 
-  function card(
-    place: Place,
-    index: number,
-    current: typeof day | null,
-    visual: boolean,
-  ) {
+  function card(place: Place, index: number, current: typeof day | null) {
     return (
       <JourneyCard
         key={place.id}
@@ -232,22 +234,15 @@ export default function JourneyStudio({
         days={trip.days}
         busy={busy}
         selected={selectedId === place.id}
-        visual={visual}
         savedCount={saved.length}
         dropBefore={dropTarget?.before === place.id}
         select={selectCard}
         edit={openPlace}
         action={action}
         hover={setHovered}
-        handleDrop={handleDrop}
-        startDrag={(event, source, place) => {
-          dragged.current = { source, place };
-          event.dataTransfer.effectAllowed = 'move';
-          event.dataTransfer.setData('text/plain', place.name);
-          event.currentTarget
-            .closest('li')
-            ?.addEventListener('dragend', endDrag, { once: true });
-        }}
+        dragging={drag.place?.id === place.id}
+        startDrag={drag.start}
+        startTouchDrag={drag.startTouch}
         mapAction={
           selectedId === place.id &&
           place.latitude !== null && (
@@ -272,7 +267,33 @@ export default function JourneyStudio({
   }
 
   return (
-    <div className="studio">
+    <div
+      className="studio"
+      ref={drag.surface}
+      onPointerDownCapture={() => {
+        drag.suppressClick.current = false;
+      }}
+      onClickCapture={(event) => {
+        if (event.detail === 0 || !drag.suppressClick.current) return;
+        drag.suppressClick.current = false;
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      onContextMenu={(event) => {
+        if (drag.isActive()) event.preventDefault();
+      }}
+      onPointerMove={drag.track}
+      onPointerUp={drag.finish}
+      onPointerCancel={drag.finish}
+      onLostPointerCapture={drag.finish}
+    >
+      {drag.place &&
+        createPortal(
+          <div className="studio-drag-preview" ref={drag.preview} aria-hidden="true">
+            {drag.place.name}
+          </div>,
+          document.body,
+        )}
       <header className="studio-header">
         <div>
           <h1>{trip.name}</h1>
@@ -323,76 +344,40 @@ export default function JourneyStudio({
         ))}
       </nav>
       <div className="studio-workspace" data-panel={panel}>
-        <section
-          className="studio-itinerary"
-          id="edition-list"
-          aria-labelledby="studio-board-title"
-        >
-          <header className="studio-toolbar">
-            <h2 id="studio-board-title">Day board</h2>
-            <div className="studio-view-options" role="group" aria-label="Itinerary view">
-              <button
-                type="button"
-                aria-pressed={view === 'card'}
-                onClick={() => setView('card')}
-              >
-                <StudioIcon name="card" /> Card view
-              </button>
-              <button
-                type="button"
-                aria-pressed={view === 'list'}
-                onClick={() => setView('list')}
-              >
-                <StudioIcon name="list" /> List view
-              </button>
-            </div>
-          </header>
-          <nav className="studio-days" aria-label="Itinerary days" id="edition-days">
-            <button
-              type="button"
-              className="secondary studio-icon"
-              aria-label="Previous day"
-              disabled={busy || dayIndex <= 0}
-              onClick={() => goToDay(trip.days[dayIndex - 1].date)}
-            >
-              <StudioIcon name="back" />
-            </button>
-            <select
-              aria-label="Jump to day"
-              disabled={busy}
-              value={date}
-              onChange={(event) => goToDay(event.target.value)}
-            >
-              {trip.days.map((item, index) => (
-                <option key={item.date} value={item.date}>
-                  Day {index + 1}, {displayDate(item.date)}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="secondary studio-icon"
-              aria-label="Next day"
-              disabled={busy || dayIndex >= trip.days.length - 1}
-              onClick={() => goToDay(trip.days[dayIndex + 1].date)}
-            >
-              <StudioIcon name="forward" />
-            </button>
-          </nav>
-          <div className="studio-board" data-view={view} ref={board}>
+        <section className="studio-itinerary" id="edition-list">
+          <div
+            className="studio-board"
+            data-dragging={drag.place !== null}
+            ref={board}
+            tabIndex={0}
+            role="region"
+            aria-label="Itinerary days"
+            onScroll={followBoard}
+            onKeyDown={(event) => {
+              if (event.target !== event.currentTarget) return;
+              const targetIndex = {
+                ArrowLeft: dayIndex - 1,
+                ArrowRight: dayIndex + 1,
+                Home: 0,
+                End: trip.days.length - 1,
+              }[event.key];
+              if (targetIndex === undefined) return;
+              event.preventDefault();
+              const target = trip.days[targetIndex];
+              if (target) goToDay(target.date);
+            }}
+          >
             {trip.days.map((current, index) => {
               const active = current.date === date;
-              if (view === 'list' && !active) return null;
               return (
                 <section
                   className="studio-day"
                   data-board-date={current.date}
+                  data-drop-zone={current.date}
                   data-active={active}
                   data-drop-end={dropTarget?.date === current.date && !dropTarget.before}
                   key={current.date}
                   aria-labelledby={`studio-day-${current.date}`}
-                  onDragOver={(event) => handleDrop(event, current.date)}
-                  onDrop={(event) => handleDrop(event, current.date)}
                 >
                   <header>
                     <h3 id={`studio-day-${current.date}`}>
@@ -416,7 +401,7 @@ export default function JourneyStudio({
                   {current.places.length ? (
                     <ol className="studio-stops">
                       {current.places.map((place, stopIndex) =>
-                        card(place, stopIndex, current, view === 'card'),
+                        card(place, stopIndex, current),
                       )}
                     </ol>
                   ) : (
@@ -436,6 +421,16 @@ export default function JourneyStudio({
                       <StudioIcon name="plus" />{' '}
                       {current.places.length === 30 ? 'Day is full' : 'Add place'}
                     </button>
+                    {canAddDay && current === lastDay && (
+                      <button
+                        type="button"
+                        className="studio-add secondary"
+                        disabled={busy}
+                        onClick={addDay}
+                      >
+                        <StudioIcon name="plus" /> Add day
+                      </button>
+                    )}
                   </div>
                 </section>
               );
@@ -447,8 +442,7 @@ export default function JourneyStudio({
           id="edition-saved"
           aria-labelledby="studio-saved-title"
           data-drop-end={dropTarget?.date === null}
-          onDragOver={(event) => handleDrop(event, null)}
-          onDrop={(event) => handleDrop(event, null)}
+          data-drop-zone="saved"
         >
           <div className="studio-saved-header">
             <h2 id="studio-saved-title">
@@ -477,7 +471,7 @@ export default function JourneyStudio({
           <div id="studio-saved-content" hidden={!savedOpen}>
             {saved.length ? (
               <ol className="studio-saved-cards">
-                {saved.map((place, index) => card(place, index, null, true))}
+                {saved.map((place, index) => card(place, index, null))}
               </ol>
             ) : (
               <p className="studio-empty">
@@ -489,50 +483,95 @@ export default function JourneyStudio({
         <section
           className="studio-map-panel"
           id="edition-map"
-          aria-labelledby="studio-map-title"
+          aria-label="Trip map"
           tabIndex={-1}
         >
-          <header className="studio-toolbar">
-            <h2 id="studio-map-title">Trip map</h2>
-            <button
-              type="button"
-              className="secondary studio-fit"
-              onClick={() => {
-                setMapView('all');
-                setMapFit((n) => n + 1);
-              }}
-            >
-              <StudioIcon name="fit" /> Fit trip
-            </button>
-          </header>
-          <div className="studio-map-options" role="group" aria-label="Map layer">
-            {(['day', 'all', 'saved'] as const).map((mode) => (
+          <div className="studio-map-surface">
+            <TripMap
+              destinationLocation={trip.destinationLocation}
+              stops={visibleStops}
+              route={mapsCurrentDay ? (routeState.route ?? routeState.demoRoute) : null}
+              selectedId={selectedId}
+              hoverMarker={hoverMarker}
+              onSelect={selectMarker}
+              fitRequest={mapFit}
+              showDays={showDayNumbers}
+              fitScope={mapDate}
+            />
+            <div className="studio-map-actions">
               <button
-                key={mode}
                 type="button"
-                aria-pressed={mapView === mode}
-                onClick={() => setMapView(mode)}
+                className="secondary studio-fit"
+                onClick={() => {
+                  setMapView('all');
+                  setMapFit((n) => n + 1);
+                }}
               >
-                {
-                  { day: `Day ${dayIndex + 1}`, all: 'All days', saved: 'Saved places' }[
-                    mode
-                  ]
-                }
+                <StudioIcon name="fit" /> Fit trip
               </button>
-            ))}
+              <details
+                className="studio-map-settings"
+                onKeyDown={(event) => {
+                  if (event.key !== 'Escape' || !event.currentTarget.open) return;
+                  event.currentTarget.open = false;
+                  event.currentTarget.querySelector('summary')?.focus();
+                }}
+              >
+                <summary className="secondary">Map settings</summary>
+                <div className="studio-map-settings-panel">
+                  <fieldset>
+                    <legend>Show on map</legend>
+                    {(['day', 'all', 'custom', 'saved'] as const).map((mode) => (
+                      <label key={mode}>
+                        <input
+                          type="radio"
+                          name="studio-map-view"
+                          checked={mapView === mode}
+                          onChange={() => {
+                            if (mode === 'custom' && mapDays.length === 0)
+                              setMapDays([date]);
+                            setMapView(mode);
+                          }}
+                        />
+                        {
+                          {
+                            day: 'Follow leftmost day',
+                            all: 'All days',
+                            custom: 'Choose days',
+                            saved: 'Saved places',
+                          }[mode]
+                        }
+                      </label>
+                    ))}
+                  </fieldset>
+                  {mapView === 'custom' && (
+                    <fieldset className="studio-map-days">
+                      <legend>Days to show</legend>
+                      <div>
+                        {trip.days.map((day, index) => (
+                          <label key={day.date}>
+                            <input
+                              type="checkbox"
+                              checked={mapDays.includes(day.date)}
+                              onChange={(event) => {
+                                const checked = event.target.checked;
+                                setMapDays((current) =>
+                                  checked
+                                    ? [...current, day.date]
+                                    : current.filter((item) => item !== day.date),
+                                );
+                              }}
+                            />
+                            Day {index + 1}, {displayDate(day.date)}
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  )}
+                </div>
+              </details>
+            </div>
           </div>
-          <TripMap
-            destinationLocation={trip.destinationLocation}
-            stops={visibleStops}
-            route={
-              mapView === 'saved' ? null : (routeState.route ?? routeState.demoRoute)
-            }
-            selectedId={selectedId}
-            hoverMarker={hoverMarker}
-            onSelect={selectMarker}
-            fitRequest={mapFit}
-            showDays={mapView === 'all'}
-          />
           <div className="studio-map-caption">
             <a
               href="#edition-route"
@@ -550,7 +589,7 @@ export default function JourneyStudio({
             </a>
             <span>
               {visibleStops.length} {visibleStops.length === 1 ? 'pin' : 'pins'}
-              {mapView === 'all' && visibleStops.length > 0 && ' (day/stop)'}
+              {showDayNumbers && visibleStops.length > 0 && ' (day/stop)'}
             </span>
             {trip.destinationLocation && (
               <a href="https://www.geonames.org/" target="_blank" rel="noreferrer">
@@ -567,7 +606,7 @@ export default function JourneyStudio({
           busy={busy}
           {...routeState}
           calculateDayRoute={(mode) => {
-            if (mapView === 'saved') setMapView('day');
+            if (!mapsCurrentDay) setMapView('day');
             routeState.calculateDayRoute(mode);
           }}
         />

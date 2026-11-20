@@ -1,9 +1,12 @@
 import {
   memo,
+  useEffect,
   useRef,
   useState,
   type CSSProperties,
-  type DragEvent,
+  type PointerEvent,
+  type RefObject,
+  type TouchEvent,
   type ReactNode,
 } from 'react';
 import { displayDate } from '../lib/display-date';
@@ -76,49 +79,52 @@ const photos = [
 const photoKey = (name: string) =>
   name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
-function PostcardPhoto({ place, priority }: { place: Place; priority: boolean }) {
-  const [failed, setFailed] = useState('');
-  const photo = photos.find(
-    ({ name, point }) =>
-      photoKey(name) === photoKey(place.name) &&
-      place.latitude !== null &&
-      Math.abs(place.latitude - point[0]) < 0.025 &&
-      place.longitude !== null &&
-      Math.abs(place.longitude - point[1]) < 0.025,
-  );
-  if (!photo || photo.file === failed) return null;
-  const seed = Array.from(place.id).reduce(
-    (hash, char) => (Math.imul(hash, 31) + char.charCodeAt(0)) >>> 0,
-    0,
-  );
+type PostcardImage = {
+  url: string;
+  sourceUrl: string;
+  author: string;
+  license: string;
+  licenseUrl: string;
+  credit?: string;
+  locationLabel?: string;
+  nearby?: boolean;
+};
+
+function PhotoPrint({
+  photo,
+  name,
+  priority,
+}: {
+  photo: PostcardImage;
+  name: string;
+  priority: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
   return (
-    <figure
-      className="studio-print"
-      data-pinned={seed % 4 !== 0}
-      style={
-        {
-          '--print-rotation': `${[-1.6, 0.9, -0.65, 1.55, 0][seed % 5]}deg`,
-          '--print-pin': `${32 + (seed % 38)}%`,
-        } as CSSProperties
-      }
-    >
+    <figure className="studio-print">
       <img
-        src={`/images/journey/${photo.file}.webp`}
-        alt={photo.name}
+        src={photo.url}
+        alt={photo.nearby && photo.locationLabel ? photo.locationLabel : name}
+        draggable={false}
         loading={priority ? 'eager' : 'lazy'}
         fetchPriority={priority ? 'high' : undefined}
+        referrerPolicy="no-referrer"
         width={640}
         height={380}
-        onError={() => setFailed(photo.file)}
+        onError={() => setFailed(true)}
       />
       <figcaption>
-        <a
-          href={`https://commons.wikimedia.org/wiki/File:${photo.source}`}
-          target="_blank"
-          rel="noreferrer"
-        >
+        {photo.nearby && photo.locationLabel && (
+          <>
+            Nearby · {photo.locationLabel}
+            <br />
+          </>
+        )}
+        <a href={photo.sourceUrl} target="_blank" rel="noreferrer">
           {photo.author}
         </a>
+        {photo.credit && ` / ${photo.credit}`}
         {' / '}
         <a href={photo.licenseUrl} target="_blank" rel="noreferrer">
           {photo.license}
@@ -129,32 +135,111 @@ function PostcardPhoto({ place, priority }: { place: Place; priority: boolean })
   );
 }
 
-export function StudioIcon({
+function PlacePhoto({
+  lookup,
   name,
+  card,
+  priority,
 }: {
-  name:
-    | 'back'
-    | 'forward'
-    | 'up'
-    | 'down'
-    | 'plus'
-    | 'save'
-    | 'grip'
-    | 'fit'
-    | 'card'
-    | 'list';
+  lookup: string;
+  name: string;
+  card: RefObject<HTMLDivElement | null>;
+  priority: boolean;
 }) {
+  const [photo, setPhoto] = useState<PostcardImage | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    async function load() {
+      try {
+        const response = await fetch(lookup, {
+          signal: controller.signal,
+          cache: 'no-cache',
+        });
+        if (!response.ok) return;
+        const result: { photo: PostcardImage | null } = await response.json();
+        if (!controller.signal.aborted) setPhoto(result.photo);
+      } catch {
+        // Keep the pinned paper card if the photo service is unreachable.
+      }
+    }
+    const target = card.current;
+    let observer: IntersectionObserver | undefined;
+    if (target && 'IntersectionObserver' in window) {
+      observer = new IntersectionObserver((entries, observation) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        observation.disconnect();
+        void load();
+      });
+      observer.observe(target);
+    } else {
+      void load();
+    }
+    return () => {
+      observer?.disconnect();
+      controller.abort();
+    };
+  }, [lookup, card]);
+
+  return photo && <PhotoPrint photo={photo} name={name} priority={priority} />;
+}
+
+function PostcardPhoto({
+  place,
+  card,
+  priority,
+}: {
+  place: Place;
+  card: RefObject<HTMLDivElement | null>;
+  priority: boolean;
+}) {
+  const { name, latitude, longitude } = place;
+  if (latitude === null || longitude === null) return null;
+  const curated = photos.find(
+    ({ name: photoName, point }) =>
+      photoKey(photoName) === photoKey(name) &&
+      Math.abs(latitude - point[0]) < 0.025 &&
+      Math.abs(longitude - point[1]) < 0.025,
+  );
+  if (curated) {
+    return (
+      <PhotoPrint
+        key={curated.file}
+        name={curated.name}
+        priority={priority}
+        photo={{
+          ...curated,
+          url: `/images/journey/${curated.file}.webp`,
+          sourceUrl: `https://commons.wikimedia.org/wiki/File:${curated.source}`,
+        }}
+      />
+    );
+  }
+  if (name.includes('|')) return null;
+  const query = new URLSearchParams({
+    name,
+    latitude: latitude.toFixed(4),
+    longitude: longitude.toFixed(4),
+  });
+  const lookup = `/api/place-photo?${query}`;
+  return (
+    <PlacePhoto
+      key={lookup}
+      lookup={lookup}
+      name={name}
+      card={card}
+      priority={priority}
+    />
+  );
+}
+
+export function StudioIcon({ name }: { name: 'up' | 'down' | 'plus' | 'save' | 'fit' }) {
   const paths = {
-    back: 'm14 6-6 6 6 6',
-    forward: 'm10 6 6 6-6 6',
     up: 'm6 15 6-6 6 6',
     down: 'm6 9 6 6 6-6',
     plus: 'M12 5v14M5 12h14',
     save: 'M6 4h12v16l-6-4-6 4z',
-    grip: 'M6 8h12M6 12h12M6 16h12',
     fit: 'M9 5H5v4m10-4h4v4m0 6v4h-4m-6 0H5v-4m7-5v4m-2-2h4',
-    card: 'M4 5h6v14H4zm10 0h6v14h-6z',
-    list: 'M4 6h2m3 0h11M4 12h2m3 0h11M4 18h2m3 0h11',
   };
   return (
     <svg
@@ -180,7 +265,6 @@ export default memo(function JourneyCard({
   days,
   busy,
   selected,
-  visual,
   savedCount,
   dropBefore,
   select,
@@ -188,7 +272,8 @@ export default memo(function JourneyCard({
   action,
   hover,
   startDrag,
-  handleDrop,
+  startTouchDrag,
+  dragging,
   mapAction,
 }: {
   place: Place;
@@ -197,37 +282,68 @@ export default memo(function JourneyCard({
   days: Day[];
   busy: boolean;
   selected: boolean;
-  visual: boolean;
   savedCount: number;
   dropBefore: boolean;
   select: (place: Place, date: PlaceLocation) => void;
   edit: (date: PlaceLocation, place: Place) => void;
   action: PlaceAction;
   hover: (id: string | null) => void;
-  startDrag: (event: DragEvent, source: PlaceLocation, place: Place) => void;
-  handleDrop: (event: DragEvent, target: PlaceLocation, before?: string) => void;
+  startDrag: (
+    event: PointerEvent<HTMLLIElement>,
+    source: PlaceLocation,
+    place: Place,
+  ) => void;
+  startTouchDrag: (
+    event: TouchEvent<HTMLLIElement>,
+    source: PlaceLocation,
+    place: Place,
+  ) => void;
+  dragging: boolean;
   mapAction?: ReactNode;
 }) {
   const source = day?.date ?? null;
   const [toolsOpen, setToolsOpen] = useState(false);
   const tools = useRef<HTMLDivElement>(null);
+  const card = useRef<HTMLDivElement>(null);
   const previous = day?.places[index - 1];
   const next = day?.places[index + 1];
+  const seed = Array.from(place.id).reduce(
+    (hash, char) => (Math.imul(hash, 31) + char.charCodeAt(0)) >>> 0,
+    0,
+  );
+  const postcardStyle = {
+    '--print-rotation': `${[-1.6, 0.9, -0.65, 1.55, 0][seed % 5]}deg`,
+    '--print-pin': `${32 + (seed % 38)}%`,
+  } as CSSProperties;
+
   return (
     <li
       id={`stop-${place.id}`}
       className={`studio-card${selected ? ' selected' : ''}`}
       tabIndex={-1}
       data-drop-before={dropBefore}
+      data-drop-stop={place.id}
+      data-dragging={dragging}
+      onPointerDown={(event) => startDrag(event, source, place)}
+      onTouchStart={(event) => startTouchDrag(event, source, place)}
+      onDragStart={(event) => {
+        if (!(event.target instanceof Element && event.target.closest('a')))
+          event.preventDefault();
+      }}
       onPointerEnter={() => hover(place.id)}
       onPointerLeave={() => hover(null)}
-      onDragOver={(event) => handleDrop(event, source, place.id)}
-      onDrop={(event) => handleDrop(event, source, place.id)}
     >
-      <div className="studio-card-content">
-        {visual && (
-          <PostcardPhoto place={place} priority={day === days[0] && index === 0} />
-        )}
+      <div
+        ref={card}
+        className="studio-card-content"
+        data-paper={seed % 3}
+        style={postcardStyle}
+      >
+        <PostcardPhoto
+          place={place}
+          card={card}
+          priority={day === days[0] && index === 0}
+        />
         <div className="studio-card-main">
           <button
             type="button"
@@ -251,18 +367,6 @@ export default memo(function JourneyCard({
           role="group"
           aria-label={`Actions for ${place.name}`}
         >
-          <button
-            type="button"
-            className="studio-drag"
-            disabled={busy}
-            draggable={!busy}
-            tabIndex={-1}
-            aria-hidden="true"
-            title={`Drag ${place.name}`}
-            onDragStart={(event) => startDrag(event, source, place)}
-          >
-            <StudioIcon name="grip" />
-          </button>
           <button type="button" disabled={busy} onClick={() => edit(source, place)}>
             Edit
           </button>

@@ -659,6 +659,21 @@ export default function Home() {
               setSelectedId(id);
             }}
             openPlace={(date, place) => setEditor({ kind: 'place', date, place })}
+            addDay={() =>
+              void run(async () => {
+                if (trip.days.length >= 60 || trip.endDate >= '9999-12-31') return;
+                const next = new Date(`${trip.endDate}T00:00:00Z`);
+                next.setUTCDate(next.getUTCDate() + 1);
+                const endDate = next.toISOString().slice(0, 10);
+                await saveTrip({
+                  ...trip,
+                  endDate,
+                  days: [...trip.days, { date: endDate, places: [] }],
+                });
+                setDate(endDate);
+                setSelectedId(null);
+              })
+            }
             editTrip={() => setEditor({ kind: 'trip', trip })}
             deleteTrip={() => deleteTrip(trip)}
             saveSample={() =>

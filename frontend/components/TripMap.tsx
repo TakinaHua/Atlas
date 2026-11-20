@@ -12,6 +12,13 @@ export type MapStop = {
 };
 
 const unitedStates: L.LatLngTuple = [39.5, -98.35];
+const fitOptions: L.FitBoundsOptions = {
+  paddingTopLeft: [40, 68],
+  paddingBottomRight: [40, 40],
+  maxZoom: 14,
+  animate: false,
+};
+
 function panToMarker(instance: L.Map, marker: L.Marker, animate: boolean) {
   if (!instance.getBounds().pad(-0.22).contains(marker.getLatLng()))
     instance.panTo(marker.getLatLng(), { animate, duration: 0.36 });
@@ -49,6 +56,7 @@ export default function TripMap({
   hoverMarker,
   onSelect,
   fitRequest,
+  fitScope,
   showDays,
 }: {
   destinationLocation?: DestinationLocation | null;
@@ -58,6 +66,7 @@ export default function TripMap({
   hoverMarker: RefObject<((id: string | null) => void) | null>;
   onSelect: (stop: MapStop) => void;
   fitRequest: number;
+  fitScope?: string;
   showDays: boolean;
 }) {
   const container = useRef<HTMLDivElement>(null);
@@ -185,13 +194,13 @@ export default function TripMap({
       bounds.isValid() ? bounds.toBBoxString() : '',
       destinationLocation?.id ?? '',
       fitRequest,
+      fitScope,
     ].join('|');
     if (previousExtent.current === extent) return;
     previousExtent.current = extent;
     const fit = () => {
       pendingFit.current = null;
-      if (bounds.isValid())
-        instance.fitBounds(bounds, { padding: [40, 40], maxZoom: 14, animate: false });
+      if (bounds.isValid()) instance.fitBounds(bounds, fitOptions);
       else if (destinationLocation)
         instance.setView(
           [destinationLocation.latitude, destinationLocation.longitude],
@@ -202,7 +211,7 @@ export default function TripMap({
     };
     if (instance.getSize().x && instance.getSize().y) fit();
     else pendingFit.current = fit;
-  }, [stops, destinationLocation, fitRequest]);
+  }, [stops, destinationLocation, fitRequest, fitScope]);
 
   useEffect(() => {
     const instance = map.current;
@@ -218,11 +227,7 @@ export default function TripMap({
     const draw = () => {
       if (!container.current?.clientWidth || !container.current.clientHeight)
         return false;
-      instance.fitBounds(line.getBounds(), {
-        padding: [40, 40],
-        maxZoom: 14,
-        animate: false,
-      });
+      instance.fitBounds(line.getBounds(), fitOptions);
       drawRoute(line);
       return true;
     };

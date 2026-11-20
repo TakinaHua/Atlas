@@ -1,4 +1,4 @@
-import { createDestinationPhotos } from './destination-photos.js';
+import { createPhotoService, placePhotoQuery } from './destination-photos.js';
 import { walkingDemo } from './walking-demo.js';
 import { createRouting, routeInput } from './routing.js';
 import { createPlaceSearch, placeQuery } from './place-search.js';
@@ -63,7 +63,7 @@ export function createApp(
   const app = express();
   const searchPlaces = createPlaceSearch();
   const calculateRoute = createRouting();
-  const destinationPhoto = createDestinationPhotos();
+  const { destinationPhoto, placePhoto } = createPhotoService();
   app.disable('x-powered-by');
   app.use(
     cors({
@@ -110,6 +110,12 @@ export function createApp(
   app.get('/api/places/search', async (req, res) => {
     const results = await searchPlaces(placeQuery.parse(req.query));
     res.json({ results, attribution: '© OpenStreetMap contributors' });
+  });
+  app.get('/api/place-photo', async (req, res) => {
+    const photo = await placePhoto(placePhotoQuery.parse(req.query));
+    res
+      .set('Cache-Control', photo ? 'private, max-age=86400' : 'private, max-age=3600')
+      .json({ photo });
   });
   app.post('/api/routes/walking-demo', (req, res) => res.json(walkingDemo(req.body)));
   app.post('/api/routes', async (req, res) => {

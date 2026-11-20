@@ -15,7 +15,22 @@ export interface DestinationPhoto {
   title: string;
   locationLabel: string;
   credit: string;
+  nearby?: boolean;
 }
+
+const coordinate = z.string().trim().min(1).transform(Number);
+export const placePhotoQuery = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .regex(/^[^|]+$/),
+  latitude: coordinate.pipe(z.number().min(-90).max(90)),
+  longitude: coordinate.pipe(z.number().min(-180).max(180)),
+});
+type PlacePhotoLocation = z.infer<typeof placePhotoQuery>;
+
 // A capital is a clearly labeled, geographically relevant state overview image.
 const capitals: Record<string, string> = {
   AL: 'Montgomery',
@@ -75,6 +90,7 @@ const pagesSchema = z.object({
     pages: z.array(
       z.object({
         title: z.string(),
+        index: z.number().optional(),
         pageimage: z.string().optional(),
         coordinates: z.array(z.object({ lat: z.number(), lon: z.number() })).optional(),
         imageinfo: z
@@ -95,6 +111,26 @@ const pagesSchema = z.object({
     ),
   }),
 });
+type Page = z.infer<typeof pagesSchema>['query']['pages'][number];
+const emptyGeoSearch = z.object({
+  batchcomplete: z.literal(true),
+  query: z.undefined().optional(),
+  error: z.undefined().optional(),
+});
+const photoArticleProps = {
+  prop: 'pageimages|coordinates',
+  piprop: 'name',
+  pilicense: 'free',
+  colimit: 'max',
+};
+const photoFileProps = {
+  prop: 'imageinfo',
+  iiprop: 'url|mime|size|extmetadata',
+  iiurlwidth: '960',
+  iiextmetadatalanguage: 'en',
+  iiextmetadatafilter:
+    'Artist|Credit|Attribution|LicenseShortName|LicenseUrl|AttributionRequired|Copyrighted',
+};
 const normalize = (s: string) =>
   s
     .normalize('NFD')
@@ -139,10 +175,7 @@ function safeUrl(value: string | undefined, host: string, path: string) {
     return '';
   }
 }
-function matches(
-  location: DestinationLocation,
-  page: z.infer<typeof pagesSchema>['query']['pages'][number],
-) {
+function matches(location: DestinationLocation, page: Page) {
   if (location.kind === 'state') {
     const title = ['Georgia', 'Washington', 'New York'].includes(location.name)
       ? `${location.name} (state)`
@@ -156,19 +189,42 @@ function matches(
     )
   )
     return false;
+  return distanceKm(location, page) < 30;
+}
+
+function distanceKm(
+  location: Pick<PlacePhotoLocation, 'latitude' | 'longitude'>,
+  page: Page,
+) {
   const c = page.coordinates?.[0];
-  if (!c) return false;
+  if (!c) return Infinity;
   const radians = Math.PI / 180;
   const a =
     Math.sin(((c.lat - location.latitude) * radians) / 2) ** 2 +
     Math.cos(c.lat * radians) *
       Math.cos(location.latitude * radians) *
       Math.sin(((c.lon - location.longitude) * radians) / 2) ** 2;
-  return 6371 * 2 * Math.asin(Math.sqrt(Math.min(1, a))) < 30;
+  return 6371 * 2 * Math.asin(Math.sqrt(Math.min(1, a)));
 }
 
-/** Bounded metadata cache, duplicate coalescing and a small queue for dashboard grids. */
-export function createDestinationPhotos(
+const placeWords = (name: string) =>
+  name
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+const withoutArticle = (name: string) => name.replace(/^the\s+/i, '');
+const placeNameKey = (name: string) =>
+  placeWords(withoutArticle(name)).replaceAll(' ', '');
+
+const isPhotoFile = (name: string) =>
+  !/(?:flag|seal|logo|coat.of.arms|locator|map\b)/i.test(name);
+const photoFile = (page: Page) =>
+  page.pageimage && isPhotoFile(page.pageimage) ? page.pageimage : undefined;
+
+/** Share the Wikimedia request queue and cache across the dashboard and board. */
+export function createPhotoService(
   fetcher: typeof fetch = fetch,
   now = () => Date.now(),
 ) {
@@ -197,7 +253,10 @@ export function createDestinationPhotos(
       if (response.status === 429) backoffUntil = now() + 60000;
       throw new Error('Photo provider unavailable');
     }
-    return pagesSchema.parse(await response.json()).query.pages;
+    const body: unknown = await response.json();
+    if (params.generator === 'geosearch' && emptyGeoSearch.safeParse(body).success)
+      return [];
+    return pagesSchema.parse(body).query.pages;
   }
   async function lookup(location: DestinationLocation): Promise<DestinationPhoto | null> {
     if (location.kind === 'state') {
@@ -223,27 +282,96 @@ export function createDestinationPhotos(
     const pages = await query('en.wikipedia.org', {
       titles,
       redirects: '1',
-      prop: 'pageimages|coordinates',
-      piprop: 'name',
-      pilicense: 'free',
-      colimit: 'max',
+      ...photoArticleProps,
     });
-    const page = pages.find((p) => p.pageimage && matches(location, p));
-    if (
-      !page?.pageimage ||
-      /(?:flag|seal|logo|coat.of.arms|locator|map\b)/i.test(page.pageimage)
-    )
-      return null;
-    const files = await query('commons.wikimedia.org', {
-      titles: `File:${page.pageimage}`,
-      prop: 'imageinfo',
-      iiprop: 'url|mime|size|extmetadata',
-      iiurlwidth: '960',
-      iiextmetadatalanguage: 'en',
-      iiextmetadatafilter:
-        'Artist|Credit|Attribution|LicenseShortName|LicenseUrl|AttributionRequired|Copyrighted',
+    const page = pages.find((p) => matches(location, p) && photoFile(p));
+    return readPhoto(page?.pageimage, location.label);
+  }
+  async function lookupPlace(location: PlacePhotoLocation) {
+    const name = placeNameKey(location.name);
+    if (!name) return null;
+    const matchesPlace = (page: Page) =>
+      distanceKm(location, page) < 2 &&
+      [page.title, page.title.replace(/,.*$|\s+\([^()]*\)$/g, '')].some(
+        (title) => placeNameKey(title) === name,
+      ) &&
+      photoFile(page);
+    const articles = await query('en.wikipedia.org', {
+      titles: [...new Set([location.name, withoutArticle(location.name)])].join('|'),
+      redirects: '1',
+      ...photoArticleProps,
     });
-    const info = files[0]?.imageinfo?.[0];
+    const direct = articles.find(matchesPlace);
+    if (direct) {
+      const photo = await readPhoto(direct.pageimage, location.name);
+      if (photo) return photo;
+    }
+    const coordinate = `${location.latitude.toFixed(4)}|${location.longitude.toFixed(4)}`;
+    const nearbyArticles = await query('en.wikipedia.org', {
+      generator: 'geosearch',
+      ggscoord: coordinate,
+      ggsradius: '2000',
+      ggslimit: '50',
+      ggsnamespace: '0',
+      ...photoArticleProps,
+    });
+    const page = nearbyArticles.find(
+      (item) => item.title !== direct?.title && matchesPlace(item),
+    );
+    if (page) {
+      const photo = await readPhoto(page.pageimage, location.name);
+      if (photo) return photo;
+    }
+
+    const phrase = placeWords(withoutArticle(location.name));
+    if (phrase.length >= 5) {
+      const files = await query('commons.wikimedia.org', {
+        generator: 'geosearch',
+        ggscoord: coordinate,
+        ggsradius: '250',
+        ggslimit: '20',
+        ggsnamespace: '6',
+        ggsprimary: 'all',
+        ...photoFileProps,
+      });
+      files.sort((a, b) => (a.index ?? Infinity) - (b.index ?? Infinity));
+      for (const file of files) {
+        const filename = file.title.replace(/^File:/, '').replace(/\.[^.]+$/, '');
+        if (
+          !isPhotoFile(filename) ||
+          !` ${placeWords(filename)} `.includes(` ${phrase} `)
+        )
+          continue;
+        const photo = photoFromFile(file, location.name);
+        if (photo) return photo;
+      }
+    }
+
+    // Use a named subject close to the stop and label it as a nearby view.
+    const fallback = nearbyArticles
+      .filter(
+        (item) =>
+          photoFile(item) && !matchesPlace(item) && distanceKm(location, item) < 2,
+      )
+      .sort((a, b) => distanceKm(location, a) - distanceKm(location, b))
+      .slice(0, 3);
+    for (const item of fallback) {
+      const photo = await readPhoto(item.pageimage, item.title);
+      if (photo) return { ...photo, nearby: true };
+    }
+    return null;
+  }
+  async function readPhoto(file: string | undefined, locationLabel: string) {
+    if (!file) return null;
+    const [page] = await query('commons.wikimedia.org', {
+      titles: `File:${file}`,
+      ...photoFileProps,
+    });
+    return photoFromFile(page, locationLabel);
+  }
+  function photoFromFile(page: Page | undefined, locationLabel: string) {
+    if (!page) return null;
+    const info = page.imageinfo?.[0];
     if (
       !info ||
       !['image/jpeg', 'image/png', 'image/webp'].includes(info.mime || '') ||
@@ -281,13 +409,12 @@ export function createDestinationPhotos(
       author,
       license,
       licenseUrl: licenseUrl || sourceUrl,
-      title: plain(page.pageimage.replace(/_/g, ' ')),
-      locationLabel: location.label,
+      title: plain(page.title.replace(/^File:/, '').replace(/_/g, ' ')),
+      locationLabel,
       credit,
     };
   }
-  return async (id: string) => {
-    const location = destinationById(id); // Resolve catalog data before any outbound request.
+  async function cached(id: string, load: () => Promise<DestinationPhoto | null>) {
     for (const [key, entry] of cache) if (entry.expires <= now()) cache.delete(key);
     const hit = cache.get(id);
     if (hit) {
@@ -297,16 +424,12 @@ export function createDestinationPhotos(
     }
     if (pending.has(id)) return structuredClone(await pending.get(id)!);
     if (pending.size >= 64 || now() < backoffUntil)
-      throw new ApiError(
-        503,
-        'PHOTO_UNAVAILABLE',
-        'Destination photos are temporarily unavailable.',
-      );
+      throw new ApiError(503, 'PHOTO_UNAVAILABLE', 'Photos are temporarily unavailable.');
     const work = (async () => {
       if (active >= 3) await new Promise<void>((resolve) => queue.push(resolve));
       else active++;
       try {
-        const photo = await lookup(location);
+        const photo = await load();
         if (cache.size >= 200) cache.delete(cache.keys().next().value!);
         cache.set(id, { photo, expires: now() + (photo ? 86400000 : 3600000) });
         return photo;
@@ -314,7 +437,7 @@ export function createDestinationPhotos(
         throw new ApiError(
           503,
           'PHOTO_UNAVAILABLE',
-          'Destination photos are temporarily unavailable.',
+          'Photos are temporarily unavailable.',
         );
       } finally {
         const next = queue.shift();
@@ -325,5 +448,19 @@ export function createDestinationPhotos(
     })();
     pending.set(id, work);
     return structuredClone(await work);
+  }
+  return {
+    async destinationPhoto(id: string) {
+      const location = destinationById(id); // Resolve catalog data before any outbound request.
+      return cached(`destination:${id}`, () => lookup(location));
+    },
+    placePhoto(location: PlacePhotoLocation) {
+      const key = JSON.stringify([location.name, location.latitude, location.longitude]);
+      return cached(`place:${key}`, () => lookupPlace(location));
+    },
   };
+}
+
+export function createDestinationPhotos(fetcher: typeof fetch = fetch, now = Date.now) {
+  return createPhotoService(fetcher, now).destinationPhoto;
 }

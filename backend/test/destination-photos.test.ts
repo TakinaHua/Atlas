@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import request from 'supertest';
-import { createDestinationPhotos } from '../src/destination-photos.js';
+import {
+  createDestinationPhotos,
+  createPhotoService,
+} from '../src/destination-photos.js';
 import { searchDestinations } from '../src/destinations.js';
 import { createApp } from '../src/app.js';
 import { TripStore } from '../src/store.js';
@@ -176,12 +179,123 @@ test('different destinations queue instead of dropping dashboard images', async 
   await Promise.all(cities.map((city) => lookup(city.id)));
   assert.equal(max, 3);
 });
+
+test('board photos match a nearby article by place name and reuse its credited image', async () => {
+  const location = { name: 'Market Square', latitude: 40.44, longitude: -80 };
+  let calls = 0;
+  const { placePhoto } = createPhotoService((async (url: URL) => {
+    calls++;
+    if (url.hostname === 'commons.wikimedia.org') {
+      assert.equal(url.searchParams.get('titles'), 'File:Market Square Pittsburgh.jpg');
+      return Response.json({ query: { pages: [metadata] } });
+    }
+    const nearby = url.searchParams.get('generator') === 'geosearch';
+    const wrongCity = {
+      title: 'Market Square',
+      pageimage: 'Other square.jpg',
+      coordinates: [{ lat: 41, lon: -79 }],
+    };
+    return Response.json({
+      query: {
+        pages: nearby
+          ? [
+              wrongCity,
+              {
+                ...wrongCity,
+                title: 'Market Square Hotel',
+                coordinates: [{ lat: 40.44, lon: -80 }],
+              },
+              {
+                title: 'Market Square (Pittsburgh)',
+                pageimage: 'Market Square Pittsburgh.jpg',
+                coordinates: [{ lat: 40.441, lon: -80.002 }],
+              },
+            ]
+          : [wrongCity],
+      },
+    });
+  }) as typeof fetch);
+  const photo = await placePhoto(location);
+  assert.equal(photo?.locationLabel, 'Market Square');
+  assert.equal(photo?.author, 'A & B');
+  assert.deepEqual(await placePhoto(location), photo);
+  assert.equal(calls, 3);
+});
+
+test('unmatched board places return a cached empty result', async () => {
+  let calls = 0;
+  const { placePhoto } = createPhotoService((async (url: URL) => {
+    calls++;
+    return Response.json(
+      url.searchParams.has('generator')
+        ? { batchcomplete: true }
+        : { query: { pages: [article] } },
+    );
+  }) as typeof fetch);
+  const location = { name: 'Boston', latitude: 0, longitude: 0 };
+  assert.equal(await placePhoto(location), null);
+  assert.equal(await placePhoto(location), null);
+  assert.equal(calls, 3);
+});
+
+test('board photos can match a nearby Commons file without a Wikipedia article', async () => {
+  const { placePhoto } = createPhotoService((async (url: URL) => {
+    if (url.hostname === 'en.wikipedia.org')
+      return Response.json({ query: { pages: [] } });
+    assert.equal(url.searchParams.get('generator'), 'geosearch');
+    assert.equal(url.searchParams.get('ggsnamespace'), '6');
+    return Response.json({
+      query: {
+        pages: [
+          { ...metadata, title: 'File:South Dole Plantationville.jpg' },
+          { ...metadata, title: 'File:2023-04-19, Dole Plantation, Hawaii.jpg' },
+        ],
+      },
+    });
+  }) as typeof fetch);
+  const photo = await placePhoto({
+    name: 'The Dole Plantation',
+    latitude: 21.5259,
+    longitude: -158.0378,
+  });
+  assert.equal(photo?.title, '2023-04-19, Dole Plantation, Hawaii.jpg');
+  assert.equal(photo?.locationLabel, 'The Dole Plantation');
+  assert.equal(photo?.nearby, undefined);
+});
+
+test('a place without a photo can use a separately labeled nearby view', async () => {
+  const { placePhoto } = createPhotoService((async (url: URL) => {
+    if (url.hostname === 'en.wikipedia.org')
+      return Response.json({
+        query: { pages: url.searchParams.has('generator') ? [article] : [] },
+      });
+    return Response.json({
+      query: { pages: url.searchParams.has('generator') ? [] : [metadata] },
+    });
+  }) as typeof fetch);
+  const photo = await placePhoto({
+    name: 'Example store',
+    latitude: boston.latitude,
+    longitude: boston.longitude,
+  });
+  assert.equal(photo?.nearby, true);
+  assert.equal(photo?.locationLabel, 'Boston');
+});
+
 test('photo endpoint rejects unknown IDs and invalid requests before provider calls', async (t) => {
   const store = new TripStore(':memory:');
   t.after(() => store.close());
   const api = request(createApp(store));
   for (const query of ['', '?id=unknown', '?id=x&id=y', '?id=' + 'a'.repeat(101)])
     await api.get('/api/destination-photo' + query).expect(400);
+  for (const query of [
+    '',
+    '?name=Park&latitude=&longitude=0',
+    '?name=Park&latitude=0&latitude=1&longitude=0',
+    '?name=Park&latitude=0&longitude=181',
+    '?name=Park%7CSquare&latitude=0&longitude=0',
+  ])
+    await api.get('/api/place-photo' + query).expect(400);
   await api
     .get('/api/destination-photo?id=' + boston.id)
     .set('Origin', 'https://evil.example')
