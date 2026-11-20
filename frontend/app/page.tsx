@@ -1,9 +1,10 @@
 'use client';
 
-import dynamic from 'next/dynamic';
 import './planner-edition.css';
 import './dashboard-edition.css';
 import './pinboard.css';
+import './journey-studio.css';
+import JourneyStudio from '../components/JourneyStudio';
 import TravelCover from '../components/TravelCover';
 import { coastalSample, walkingSample } from '../lib/sample-trips';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -11,26 +12,14 @@ import DestinationPhoto from '../components/DestinationPhoto';
 import EditorDialog from '../components/EditorDialog';
 import TripForm from '../components/TripForm';
 import PlaceForm from '../components/PlaceForm';
+import { displayDate } from '../lib/display-date';
 import { itineraryDates } from '../lib/api';
 import { api } from '../lib/remote-api';
 import type { CalculatedRoute, WalkingDemoRoute, Place, Trip } from '../lib/types';
 
-// Leaflet needs the browser DOM and must not run during server rendering.
-const TripMap = dynamic(() => import('../components/TripMap'), {
-  ssr: false,
-  loading: () => <div className="map empty">Opening the map…</div>,
-});
-type Editor = { kind: 'trip'; trip?: Trip } | { kind: 'place'; place?: Place };
+type Editor =
+  { kind: 'trip'; trip?: Trip } | { kind: 'place'; date: string | null; place?: Place };
 const LOCAL_TRIPS_KEYS = ['atlas.preview.trips.v1', 'atlas.trips.v1'];
-function displayDate(date: string, includeYear = false) {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    ...(includeYear ? { year: 'numeric' as const } : {}),
-    timeZone: 'UTC',
-  }).format(new Date(`${date}T00:00:00Z`));
-}
-
 export default function Home() {
   const [boardOpen, setBoardOpen] = useState(false);
   const [cover, setCover] = useState(0);
@@ -53,6 +42,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [tripsLoaded, setTripsLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
+  const mutationPending = useRef(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [hasLocalTrips, setHasLocalTrips] = useState(false);
@@ -61,16 +51,6 @@ export default function Home() {
   const isSample = sampleTrip !== null && sampleTrip.id === tripId;
   const trip = isSample ? sampleTrip : trips.find((item) => item.id === tripId);
   const day = trip?.days.find((item) => item.date === date);
-  const selectPlace = useCallback((id: string) => {
-    setSelectedId(id);
-    if (window.matchMedia('(min-width: 768px)').matches) {
-      const row = document.getElementById(`stop-${id}`);
-      const bounds = row?.getBoundingClientRect();
-      if (bounds && (bounds.top < 0 || bounds.bottom > window.innerHeight))
-        row?.scrollIntoView({ block: 'center' });
-    }
-  }, []);
-
   const matchingTrips = trips.filter((item) =>
     (item.name + ' ' + item.destination)
       .toLocaleLowerCase()
@@ -96,6 +76,7 @@ export default function Home() {
   }
 
   function changeDay(nextDate: string) {
+    if (nextDate === date) return;
     clearRoute();
     setDate(nextDate);
     setSelectedId(null);
@@ -209,6 +190,8 @@ export default function Home() {
   }
 
   async function run(action: () => Promise<void>) {
+    if (mutationPending.current) return;
+    mutationPending.current = true;
     setBusy(true);
     setError('');
     setNotice('');
@@ -217,6 +200,7 @@ export default function Home() {
     } catch (error) {
       setError(error instanceof Error ? error.message : 'The action failed.');
     } finally {
+      mutationPending.current = false;
       setBusy(false);
     }
   }
@@ -268,7 +252,7 @@ export default function Home() {
       }
       return;
     }
-    if (!trip || !day || editor?.kind !== 'place') return;
+    if (!trip || editor?.kind !== 'place') return;
     const latitudeText = String(data.get('latitude'));
     const longitudeText = String(data.get('longitude'));
     if ((latitudeText === '') !== (longitudeText === ''))
@@ -282,42 +266,90 @@ export default function Home() {
       latitude: latitudeText === '' ? null : Number(latitudeText),
       longitude: longitudeText === '' ? null : Number(longitudeText),
     };
+    const target = editor.date;
+    const previousPlaces =
+      target === null
+        ? (trip.savedPlaces ?? [])
+        : trip.days.find((item) => item.date === target)?.places;
+    if (!previousPlaces)
+      throw new Error('That day is no longer available. Reopen the trip.');
+    if (!editor.place && previousPlaces.length >= (target === null ? 120 : 30))
+      throw new Error(
+        target === null
+          ? 'Saved for later is full (120 places).'
+          : 'That day already has 30 places.',
+      );
     const places = editor.place
-      ? day.places.map((item) => (item.id === place.id ? place : item))
-      : [...day.places, place];
-    await saveTrip({
-      ...trip,
-      days: trip.days.map((item) => (item.date === date ? { ...item, places } : item)),
-    });
+      ? previousPlaces.map((item) => (item.id === place.id ? place : item))
+      : [...previousPlaces, place];
+    await saveTrip(
+      target === null
+        ? { ...trip, savedPlaces: places }
+        : {
+            ...trip,
+            days: trip.days.map((item) =>
+              item.date === target ? { ...item, places } : item,
+            ),
+          },
+    );
+    if (target !== null) setDate(target);
     setSelectedId(place.id);
   }
 
-  async function changePlaces(places: Place[]) {
-    if (!trip) return;
+  async function placeAction(
+    source: string | null,
+    place: Place,
+    target?: string | null,
+    beforeId?: string,
+  ) {
+    if (!trip || (source === target && place.id === beforeId)) return;
+    const saved = trip.savedPlaces ?? [];
+    const without = (places: Place[]) => places.filter((item) => item.id !== place.id);
+    const insert = (places: Place[]) => {
+      const next = without(places);
+      const index = beforeId ? next.findIndex((item) => item.id === beforeId) : -1;
+      next.splice(index < 0 ? next.length : index, 0, place);
+      return next;
+    };
+    const targetDay = trip.days.find((item) => item.date === target);
+    if (typeof target === 'string' && !targetDay)
+      throw new Error('That day is no longer available. Reopen the trip.');
+    if (source !== target && targetDay && targetDay.places.length >= 30)
+      throw new Error('That day already has 30 places.');
+    if (source !== target && target === null && saved.length >= 120)
+      throw new Error('Saved for later is full (120 places).');
+    if (
+      source === null &&
+      targetDay?.places.some(
+        (item) =>
+          item.name.trim().toLowerCase() === place.name.trim().toLowerCase() &&
+          (place.latitude !== null && item.latitude !== null
+            ? place.latitude.toFixed(5) === item.latitude.toFixed(5) &&
+              place.longitude?.toFixed(5) === item.longitude?.toFixed(5)
+            : place.address.trim().toLowerCase() === item.address.trim().toLowerCase()),
+      )
+    )
+      throw new Error('This place is already on that day.');
     await saveTrip({
       ...trip,
-      days: trip.days.map((item) => (item.date === date ? { ...item, places } : item)),
+      savedPlaces:
+        target === null ? insert(saved) : source === null ? without(saved) : saved,
+      days: trip.days.map((item) => {
+        if (item.date === target) return { ...item, places: insert(item.places) };
+        if (item.date === source) return { ...item, places: without(item.places) };
+        return item;
+      }),
     });
-  }
-
-  async function movePlace(place: Place, targetDate: string) {
-    if (!trip || !day || targetDate === date) return;
-    const target = trip.days.find((item) => item.date === targetDate);
-    if (!target) throw new Error('That day is no longer available. Reopen the trip.');
-    if (target.places.length >= 30) throw new Error('That day already has 30 places.');
-    await saveTrip({
-      ...trip,
-      days: trip.days.map((item) =>
-        item.date === date
-          ? { ...item, places: item.places.filter((item) => item.id !== place.id) }
-          : item.date === targetDate
-            ? { ...item, places: [...item.places, place] }
-            : item,
-      ),
-    });
-    setDate(targetDate);
-    setSelectedId(place.id);
-    setNotice(`${place.name} moved to ${displayDate(targetDate)}.`);
+    if (typeof target === 'string') setDate(target);
+    setSelectedId(
+      target === undefined ? (selectedId === place.id ? null : selectedId) : place.id,
+    );
+    if (source !== target && target !== undefined)
+      setNotice(
+        target === null
+          ? `${place.name} saved for later.`
+          : `${place.name} moved to ${displayDate(target)}.`,
+      );
   }
 
   async function importTrips(raw: string) {
@@ -370,9 +402,12 @@ export default function Home() {
           Atlas
         </a>
         {trip ? (
-          <button className="secondary" onClick={showBoard}>
-            My trips
-          </button>
+          <>
+            <span className="studio-name">Journey Studio</span>
+            <button className="secondary" onClick={showBoard}>
+              My trips
+            </button>
+          </>
         ) : (
           <>
             <span className="edition-name">Travel Editions</span>
@@ -382,7 +417,7 @@ export default function Home() {
           </>
         )}
       </header>
-      <main id="main" className={trip ? 'edition' : 'edition dashboard'}>
+      <main id="main" className={trip ? 'edition studio-page' : 'edition dashboard'}>
         {error && (
           <div className="error" role="alert">
             {error}{' '}
@@ -611,470 +646,39 @@ export default function Home() {
             </section>
           </div>
         ) : (
-          <>
-            <button
-              className="back"
-              onClick={() => {
-                showBoard();
-              }}
-            >
-              ← All trips
-            </button>
-            <div className="trip-overview">
-              <DestinationPhoto
-                destination={trip.destination}
-                location={trip.destinationLocation}
-              />
-              <div>
-                <p className="eyebrow">{trip.destination}</p>
-                <h1>{trip.name}</h1>
-                <p>
-                  {displayDate(trip.startDate, true)} — {displayDate(trip.endDate, true)}{' '}
-                  · {trip.days.length} {trip.days.length === 1 ? 'day' : 'days'}
-                </p>
-              </div>
-              <div className="actions">
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => setEditor({ kind: 'trip', trip })}
-                >
-                  Edit trip
-                </button>
-                {isSample ? (
-                  <button
-                    disabled={busy}
-                    onClick={() =>
-                      void run(async () => {
-                        const saved = await api<Trip>('/trips', 'POST', trip);
-                        setTrips((current) => [saved, ...current]);
-                        setSampleTrip(null);
-                        openTrip(saved);
-                      })
-                    }
-                  >
-                    Add to my trips
-                  </button>
-                ) : (
-                  <button
-                    className="danger"
-                    disabled={busy}
-                    onClick={() => deleteTrip(trip)}
-                  >
-                    Delete trip
-                  </button>
-                )}
-              </div>
-            </div>
-            {isSample && (
-              <p className="sample-notice">
-                Explore and edit this sample freely. Choose “Add to my trips” to keep it
-                in Saved trips.
-              </p>
-            )}
-            <div className="edition-days-heading" id="edition-days" tabIndex={-1}>
-              <h2>Itinerary days</h2>
-              {trip.days.length > 4 && (
-                <label>
-                  Jump to day
-                  <select
-                    value={date}
-                    disabled={busy}
-                    onChange={(event) => changeDay(event.target.value)}
-                  >
-                    {trip.days.map((item, index) => (
-                      <option key={item.date} value={item.date}>
-                        Day {index + 1} · {displayDate(item.date)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-            </div>
-            <nav className="days" aria-label="Itinerary days">
-              {trip.days.map((item, index) => (
-                <button
-                  className={date === item.date ? 'active' : 'secondary'}
-                  aria-current={date === item.date ? 'date' : undefined}
-                  key={item.date}
-                  disabled={busy}
-                  onClick={() => {
-                    clearRoute();
-                    setDate(item.date);
-                    setSelectedId(null);
-                  }}
-                >
-                  <small>DAY {index + 1}</small>
-                  {displayDate(item.date)}
-                  <span className="day-count">
-                    {item.places.length} {item.places.length === 1 ? 'stop' : 'stops'}
-                  </span>
-                </button>
-              ))}
-            </nav>
-            <header className="workspace-day">
-              <div>
-                <p className="eyebrow">
-                  Day {trip.days.findIndex((item) => item.date === date) + 1} of{' '}
-                  {trip.days.length}
-                </p>
-                <h2>
-                  {new Intl.DateTimeFormat('en-US', {
-                    weekday: 'long',
-                    month: 'short',
-                    day: 'numeric',
-                    timeZone: 'UTC',
-                  }).format(new Date(date + 'T00:00:00Z'))}
-                </h2>
-              </div>
-            </header>
-            <nav className="compact-planner-nav" aria-label="Jump within planner">
-              <a href="#edition-days">Days</a>
-              <a href="#edition-list">Stops</a>
-              <a href="#edition-map">Map</a>
-              <a href="#edition-route">Route</a>
-            </nav>
-            <div className="planner">
-              <section className="itinerary" id="edition-list" tabIndex={-1}>
-                <div className="section-heading">
-                  <h3>
-                    Stops{' '}
-                    <span className="workspace-count">{day?.places.length || 0}</span>
-                  </h3>
-                  <button
-                    disabled={busy || !day || day.places.length >= 30}
-                    onClick={() => setEditor({ kind: 'place' })}
-                  >
-                    ＋ Add place
-                  </button>
-                </div>
-                {!day?.places.length && (
-                  <p className="empty">Start with one place you can’t wait to see.</p>
-                )}
-                <ol className="stops">
-                  {day?.places.map((place, index) => (
-                    <li
-                      className={selectedId === place.id ? 'selected' : ''}
-                      key={place.id}
-                      id={`stop-${place.id}`}
-                      tabIndex={-1}
-                    >
-                      <button
-                        className="stop-title"
-                        aria-pressed={selectedId === place.id}
-                        onClick={() => setSelectedId(place.id)}
-                      >
-                        <span className="stop-number">{index + 1}</span>
-                        <strong>{place.name}</strong>
-                      </button>
-                      {selectedId === place.id && place.latitude !== null && (
-                        <a className="edition-jump" href="#edition-map">
-                          Show selected stop on map ↓
-                        </a>
-                      )}
-                      <div className="stop-meta">
-                        <p className="category" data-category={place.category}>
-                          {place.category || 'Uncategorized'}
-                        </p>
-                        {place.address && <p>{place.address}</p>}
-                      </div>
-                      {place.notes && <p className="notes">{place.notes}</p>}
-                      {place.latitude === null && (
-                        <p className="muted">
-                          Edit this place and select a search result to add a map pin
-                        </p>
-                      )}
-                      <div
-                        className="stop-tools"
-                        role="group"
-                        aria-label={`Actions for ${place.name}`}
-                      >
-                        {trip.days.length > 1 && (
-                          <label className="move-day">
-                            Move to another day
-                            <select
-                              aria-label={`Move ${place.name} to another day`}
-                              value=""
-                              disabled={busy}
-                              onChange={(event) => {
-                                const targetDate = event.target.value;
-                                if (targetDate)
-                                  void run(() => movePlace(place, targetDate));
-                              }}
-                            >
-                              <option value="" disabled>
-                                Choose a day…
-                              </option>
-                              {trip.days.map(
-                                (target, dayIndex) =>
-                                  target.date !== date && (
-                                    <option
-                                      key={target.date}
-                                      value={target.date}
-                                      disabled={target.places.length >= 30}
-                                    >
-                                      Day {dayIndex + 1} · {displayDate(target.date)}
-                                      {target.places.length >= 30 ? ' (full)' : ''}
-                                    </option>
-                                  ),
-                              )}
-                            </select>
-                          </label>
-                        )}
-                        <div className="actions">
-                          <button
-                            className="text-button"
-                            disabled={busy}
-                            onClick={() => setEditor({ kind: 'place', place })}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="text-button"
-                            aria-label={`Move ${place.name} up`}
-                            disabled={busy || index === 0}
-                            onClick={() =>
-                              void run(async () => {
-                                const places = [...day.places];
-                                [places[index - 1], places[index]] = [
-                                  places[index],
-                                  places[index - 1],
-                                ];
-                                await changePlaces(places);
-                              })
-                            }
-                          >
-                            ↑
-                          </button>
-                          <button
-                            className="text-button"
-                            aria-label={`Move ${place.name} down`}
-                            disabled={busy || index === day.places.length - 1}
-                            onClick={() =>
-                              void run(async () => {
-                                const places = [...day.places];
-                                [places[index + 1], places[index]] = [
-                                  places[index],
-                                  places[index + 1],
-                                ];
-                                await changePlaces(places);
-                              })
-                            }
-                          >
-                            ↓
-                          </button>
-                          <button
-                            className="text-button"
-                            disabled={busy}
-                            onClick={() => {
-                              if (window.confirm(`Remove ${place.name}?`))
-                                void run(async () => {
-                                  await changePlaces(
-                                    day.places.filter((item) => item.id !== place.id),
-                                  );
-                                  setSelectedId(null);
-                                });
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-                <div className="route-box" id="edition-route" tabIndex={-1}>
-                  <h3>Route for the day</h3>
-                  <button
-                    disabled={
-                      busy ||
-                      routing !== null ||
-                      !day ||
-                      day.places.length < 2 ||
-                      day.places.some((p) => p.latitude === null || p.longitude === null)
-                    }
-                    onClick={() => void calculateDayRoute()}
-                  >
-                    {routing === 'driving'
-                      ? 'Calculating driving route…'
-                      : 'Calculate driving route'}
-                  </button>
-                  {!day || day.places.length < 2 ? (
-                    <p className="muted">Add at least two stops to calculate a route.</p>
-                  ) : day.places.some(
-                      (p) => p.latitude === null || p.longitude === null,
-                    ) ? (
-                    <p className="muted">
-                      Select a map location for every stop before calculating.
-                    </p>
-                  ) : null}
-                  {routeError && (
-                    <p className="error" role="alert">
-                      {routeError}
-                    </p>
-                  )}
-                  {route && (
-                    <div
-                      className="route-summary"
-                      role="status"
-                      aria-label="Driving route summary"
-                    >
-                      <p>
-                        <strong>
-                          {(route.distanceMeters / 1609.344).toFixed(1)} miles ·{' '}
-                          {Math.ceil(route.durationSeconds / 60)} min driving
-                        </strong>
-                      </p>
-                      <ol>
-                        {route.legs.map((leg, index) => (
-                          <li key={index}>
-                            {day?.places[index]?.name} → {day?.places[index + 1]?.name}:{' '}
-                            {(leg.distanceMeters / 1609.344).toFixed(1)} mi ·{' '}
-                            {Math.ceil(leg.durationSeconds / 60)} min
-                          </li>
-                        ))}
-                      </ol>
-                      <button className="text-button" onClick={clearRoute}>
-                        Clear route
-                      </button>
-                    </div>
-                  )}
-                  <details className="walking-demo">
-                    <summary>Shortest walking path · Pittsburgh demo</summary>
-                    <p>
-                      This local demonstration uses Atlas’s own Dijkstra algorithm on a
-                      small downtown street/path snapshot. Try Gateway and Market Square.
-                      It keeps your stop order.
-                    </p>
-                    <button
-                      disabled={
-                        busy ||
-                        routing !== null ||
-                        !day ||
-                        day.places.length < 2 ||
-                        day.places.some(
-                          (p) => p.latitude === null || p.longitude === null,
-                        )
-                      }
-                      onClick={() => void calculateDayRoute('demo')}
-                    >
-                      {routing === 'demo'
-                        ? 'Calculating walking path…'
-                        : 'Find shortest demo path'}
-                    </button>
-                    <p className="muted">
-                      Limited coverage; paths may be disconnected. Stops snap to the
-                      nearest node within 150 m. Distance excludes the gap from each stop
-                      to its snapped node. Access conditions, crossings, stairs and
-                      accessibility are not fully modeled: this is not navigation
-                      guidance.
-                    </p>
-                  </details>
-                  {demoRoute && (
-                    <div role="status" aria-label="Walking demo result">
-                      <p>
-                        <strong>
-                          {Math.round(demoRoute.distanceMeters)} m · shortest path in the
-                          demo graph
-                        </strong>
-                      </p>
-                      <p>
-                        Calculated locally by Dijkstra. Snapshot: {demoRoute.snapshotDate}
-                        .
-                      </p>
-                      <ol>
-                        {demoRoute.legs.map((leg, index) => (
-                          <li key={index}>
-                            {day?.places[index]?.name} → {day?.places[index + 1]?.name}:{' '}
-                            {Math.round(leg.distanceMeters)} m
-                          </li>
-                        ))}
-                      </ol>
-                      <p className="muted">
-                        Snap gaps:{' '}
-                        {demoRoute.snapped
-                          .map(
-                            (stop, index) =>
-                              `stop ${index + 1}: ${Math.round(stop.distanceMeters)} m`,
-                          )
-                          .join('; ')}
-                        .
-                      </p>
-                      <details>
-                        <summary>How this path was found</summary>
-                        <p>
-                          {demoRoute.graphNodes.toLocaleString()} nodes ·{' '}
-                          {demoRoute.graphEdges.toLocaleString()} directed edges ·{' '}
-                          {demoRoute.visitedNodes.toLocaleString()} node visits across all
-                          legs. Edge weights are segment lengths. Dijkstra chooses the
-                          lowest total distance between the snapped nodes; it does not
-                          reorder your stops.
-                        </p>
-                      </details>
-                      <p className="muted">
-                        Graph data:{' '}
-                        <a
-                          href="https://www.openstreetmap.org/copyright"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          © OpenStreetMap contributors · ODbL
-                        </a>
-                      </p>
-                      <button className="text-button" onClick={clearRoute}>
-                        Clear demo path
-                      </button>
-                    </div>
-                  )}
-                  <p className="muted">
-                    Driving routes follow your stop order. Estimated driving time excludes
-                    visits and live traffic. Locations are sent to the routing provider
-                    when you calculate.
-                  </p>
-                  <p className="muted">
-                    Routing by{' '}
-                    <a href="https://project-osrm.org/" target="_blank" rel="noreferrer">
-                      OSRM
-                    </a>{' '}
-                    ·{' '}
-                    <a
-                      href="https://www.openstreetmap.org/copyright"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      © OpenStreetMap contributors
-                    </a>
-                  </p>
-                </div>
-              </section>
-              <section className="map-panel" id="edition-map" tabIndex={-1}>
-                <div className="section-heading">
-                  <h3>Day map</h3>
-                  <span className="badge">
-                    {day?.places.filter((place) => place.latitude !== null).length || 0}{' '}
-                    pins
-                  </span>
-                </div>
-                <a
-                  className="edition-jump"
-                  href={selectedId ? `#stop-${selectedId}` : '#edition-list'}
-                >
-                  {selectedId ? 'Return to selected stop ↑' : 'Return to itinerary ↑'}
-                </a>
-                <TripMap
-                  destinationLocation={trip.destinationLocation}
-                  places={day?.places || []}
-                  route={route ?? demoRoute}
-                  selectedId={selectedId}
-                  onSelect={selectPlace}
-                />
-                <p className="muted">
-                  Drag to explore, scroll to zoom, or select a numbered destination. Map
-                  tiles use OpenStreetMap. Search for a place to add a stop to the map.
-                </p>
-              </section>
-            </div>
-          </>
+          <JourneyStudio
+            key={trip.id}
+            trip={trip}
+            date={date}
+            selectedId={selectedId}
+            busy={busy}
+            isSample={isSample}
+            changeDay={changeDay}
+            selectPlace={(id, stopDate) => {
+              if (stopDate && stopDate !== date) changeDay(stopDate);
+              setSelectedId(id);
+            }}
+            openPlace={(date, place) => setEditor({ kind: 'place', date, place })}
+            editTrip={() => setEditor({ kind: 'trip', trip })}
+            deleteTrip={() => deleteTrip(trip)}
+            saveSample={() =>
+              void run(async () => {
+                const saved = await api<Trip>('/trips', 'POST', trip);
+                setTrips((current) => [saved, ...current]);
+                setSampleTrip(null);
+                openTrip(saved);
+              })
+            }
+            placeAction={(...args) => void run(() => placeAction(...args))}
+            routeState={{
+              route,
+              demoRoute,
+              routing,
+              routeError,
+              clearRoute,
+              calculateDayRoute,
+            }}
+          />
         )}
       </main>
       <footer>Atlas</footer>
@@ -1087,7 +691,9 @@ export default function Home() {
                 : 'Start a new journey'
               : editor.place
                 ? 'Edit place'
-                : 'Add a place'
+                : editor.date === null
+                  ? 'Save a place for later'
+                  : 'Add a place'
           }
           onClose={() => setEditor(null)}
           onSave={saveEditor}

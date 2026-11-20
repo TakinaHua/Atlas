@@ -30,7 +30,7 @@ async function createTrip(page: Page) {
 }
 
 async function addPlace(page: Page, name: string, latitude: string, longitude: string) {
-  await page.getByRole('button', { name: 'Add place' }).click();
+  await page.getByRole('button', { name: 'Add place', exact: true }).click();
   await page.getByLabel('Place name').fill(name);
   await page.getByText('Map coordinates (optional)', { exact: true }).click();
   await page.getByLabel('Latitude', { exact: true }).fill(latitude);
@@ -49,9 +49,11 @@ test('create, edit, reorder, day navigation, persistence, mobile, and delete', a
   await addPlace(page, 'Carnegie Museum', '40.4433', '-79.9500');
   await expect(page.locator('.map-pin')).toHaveCount(2);
   await page.getByRole('button', { name: 'Move Carnegie Museum up' }).click();
-  await expect(page.locator('.stops li').first()).toContainText('Carnegie Museum');
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li').first(),
+  ).toContainText('Carnegie Museum');
   await page
-    .locator('.stops li')
+    .locator('.studio-day[data-active=true] .studio-stops > li')
     .first()
     .getByRole('button', { name: 'Edit', exact: true })
     .click();
@@ -62,25 +64,45 @@ test('create, edit, reorder, day navigation, persistence, mobile, and delete', a
     path: 'test-results/planner-desktop.png',
     fullPage: true,
   });
-  await page.getByRole('button', { name: /DAY 2/ }).click();
-  await expect(page.locator('.stops li')).toHaveCount(0);
+  await page.getByLabel('Jump to day').selectOption({ index: 1 });
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li'),
+  ).toHaveCount(0);
   await expect(page.locator('.leaflet-overlay-pane path')).toHaveCount(0);
-  await page.getByRole('button', { name: /DAY 1/ }).click();
-  await expect(page.locator('.stops li')).toHaveCount(2);
+  await page.getByLabel('Jump to day').selectOption({ index: 0 });
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li'),
+  ).toHaveCount(2);
   await page.reload();
   await page.getByRole('button', { name: 'My trips', exact: true }).click();
   await page.getByRole('button', { name: /^Open itinerary:/ }).click();
-  await expect(page.locator('.stops li')).toHaveCount(2);
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li'),
+  ).toHaveCount(2);
   await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .getByRole('navigation', { name: 'Journey Studio views' })
+    .getByRole('button', { name: 'Map', exact: true })
+    .click();
   await expect(page.locator('.leaflet-container')).toBeVisible();
   await expect(page.locator('.map-pin')).toHaveCount(2);
+  await page
+    .getByRole('navigation', { name: 'Journey Studio views' })
+    .getByRole('button', { name: 'Itinerary' })
+    .click();
   await page.screenshot({ path: 'test-results/planner-mobile.png', fullPage: true });
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
   ).toBe(true);
   page.on('dialog', (dialog) => dialog.accept());
-  await page.locator('.stops li').first().getByRole('button', { name: 'Remove' }).click();
-  await expect(page.locator('.stops li')).toHaveCount(1);
+  const firstStop = page
+    .locator('.studio-day[data-active=true] .studio-stops > li')
+    .first();
+  await firstStop.getByRole('button', { name: /More actions for/ }).click();
+  await firstStop.getByRole('button', { name: 'Remove' }).click();
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li'),
+  ).toHaveCount(1);
   await page.getByRole('button', { name: 'Delete trip', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'My trips' })).toBeVisible();
   expect(errors).toEqual([]);
@@ -178,7 +200,9 @@ test('sample stays unsaved until explicitly added and displays readable dates', 
   await page.goto('/');
   await page.getByRole('button', { name: 'Next destination' }).click();
   await page.getByRole('button', { name: 'Preview the coastal itinerary' }).click();
-  await expect(page.getByRole('button', { name: 'DAY 1 Nov 14' })).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Day 1', exact: true }).locator('time'),
+  ).toContainText('Nov 14');
   await page.getByRole('button', { name: 'My trips', exact: true }).click();
   await expect(page.locator('.trip-card')).toHaveCount(0);
   await page.reload();
@@ -202,26 +226,32 @@ test('Other category accepts custom text and preserves it when editing', async (
   page,
 }) => {
   await createTrip(page);
-  await page.getByRole('button', { name: 'Add place' }).click();
+  await page.getByRole('button', { name: 'Add place', exact: true }).click();
   await page.getByLabel('Place name').fill('Evening concert');
   await page.getByLabel('Category', { exact: true }).selectOption('Other');
   await expect(page.getByLabel('Custom category')).toHaveValue('');
   await page.getByLabel('Custom category').fill('Live music');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.locator('.stops li')).toContainText('Live music');
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li'),
+  ).toContainText('Live music');
   await page.reload();
   await page.getByRole('button', { name: 'My trips', exact: true }).click();
   await page.getByRole('button', { name: /^Open itinerary:/ }).click();
   await page
-    .locator('.stops li')
+    .locator('.studio-day[data-active=true] .studio-stops > li')
     .getByRole('button', { name: 'Edit', exact: true })
     .click();
   await expect(page.getByLabel('Category', { exact: true })).toHaveValue('Other');
   await expect(page.getByLabel('Custom category')).toHaveValue('Live music');
   await page.getByLabel('Category', { exact: true }).selectOption('Nature');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.locator('.stops li')).toContainText('Nature');
-  await expect(page.locator('.stops li')).not.toContainText('Live music');
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li'),
+  ).toContainText('Nature');
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li'),
+  ).not.toContainText('Live music');
 });
 
 test('server trips appear in a fresh browser; preview import preserves original data', async ({
@@ -239,7 +269,9 @@ test('server trips appear in a fresh browser; preview import preserves original 
       other.getByRole('heading', { name: 'Pittsburgh weekend' }),
     ).toBeVisible();
     await other.getByRole('button', { name: /^Open itinerary:/ }).click();
-    await expect(other.locator('.stops li')).toContainText('Saved without coordinates');
+    await expect(
+      other.locator('.studio-day[data-active=true] .studio-stops > li'),
+    ).toContainText('Saved without coordinates');
   } finally {
     await fresh.close();
   }
@@ -334,7 +366,7 @@ test('U.S. destination search selects and persists a city, supports keyboard and
   await expect(
     page.getByText('Trip area: Honolulu, Hawaii', { exact: false }),
   ).toBeVisible();
-  await page.getByRole('button', { name: /DAY 2/ }).click();
+  await page.getByLabel('Jump to day').selectOption({ index: 1 });
   await expect(page.getByLabel('Interactive map for Honolulu, Hawaii')).toBeVisible();
   await page.getByRole('button', { name: 'Edit trip', exact: true }).click();
   await destination.fill('CA');
@@ -369,7 +401,9 @@ test('existing trip destination can be selected without losing places; search fa
     .click();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('.stops li')).toContainText('Saved stop');
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li'),
+  ).toContainText('Saved stop');
   await page.getByRole('button', { name: 'Edit trip', exact: true }).click();
   await page.route('**/api/destinations?*', (route) =>
     route.fulfill({ status: 503, body: 'Unavailable' }),
@@ -380,7 +414,9 @@ test('existing trip destination can be selected without losing places; search fa
   ).toBeVisible();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('.stops li')).toContainText('Saved stop');
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li'),
+  ).toContainText('Saved stop');
 });
 
 test('place search selection saves a map pin; changing address clears it; failures allow manual entry', async ({
@@ -403,7 +439,7 @@ test('place search selection saves a map pin; changing address clears it; failur
       },
     });
   });
-  await page.getByRole('button', { name: 'Add place' }).click();
+  await page.getByRole('button', { name: 'Add place', exact: true }).click();
   await page.getByLabel('Find a place or address').fill('Point State Park Pittsburgh');
   expect(calls).toBe(0);
   await page.getByRole('button', { name: 'Search places', exact: true }).click();
@@ -416,20 +452,20 @@ test('place search selection saves a map pin; changing address clears it; failur
   await page.getByRole('button', { name: /^Open itinerary:/ }).click();
   await expect(page.locator('.map-pin')).toHaveCount(1);
   await page
-    .locator('.stops li')
+    .locator('.studio-day[data-active=true] .studio-stops > li')
     .getByRole('button', { name: 'Edit', exact: true })
     .click();
   await page.getByLabel('Place name', { exact: true }).fill('Afternoon walk');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.locator('.map-pin')).toHaveAttribute('title', 'Afternoon walk');
   await page
-    .locator('.stops li')
+    .locator('.studio-day[data-active=true] .studio-stops > li')
     .getByRole('button', { name: 'Edit', exact: true })
     .click();
   await page.getByLabel('Address', { exact: true }).fill('A different address');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.locator('.map-pin')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Add place' }).click();
+  await page.getByRole('button', { name: 'Add place', exact: true }).click();
   await page.unroute('**/api/places/search?*');
   await page.route('**/api/places/search?*', (route) =>
     route.fulfill({
@@ -443,7 +479,9 @@ test('place search selection saves a map pin; changing address clears it; failur
   await page.getByLabel('Place name').fill('Manual museum');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('.stops li')).toHaveCount(2);
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li'),
+  ).toHaveCount(2);
 });
 
 test('moving a place between days is atomic, preserves details and persists after reopening', async ({
@@ -455,9 +493,9 @@ test('moving a place between days is atomic, preserves details and persists afte
   const { trips: before } = await (await request.get('/api/itineraries')).json();
   const original = before.find((trip: { id: string }) => !initialIds.has(trip.id));
   const savedPlace = original.days[0].places[0];
-  await page.getByRole('button', { name: /DAY 2/ }).click();
+  await page.getByLabel('Jump to day').selectOption({ index: 1 });
   await addPlace(page, 'Existing stop', '', '');
-  await page.getByRole('button', { name: /DAY 1/ }).click();
+  await page.getByLabel('Jump to day').selectOption({ index: 0 });
   await page.route('**/api/itineraries/*', (route) =>
     route.request().method() === 'PUT'
       ? route.fulfill({
@@ -466,19 +504,32 @@ test('moving a place between days is atomic, preserves details and persists afte
         })
       : route.continue(),
   );
+  await page
+    .getByRole('button', { name: 'More actions for Park to move', expanded: false })
+    .click();
   await page.getByLabel('Move Park to move to another day').selectOption('2026-10-11');
   await expect(page.locator('.error[role=alert]')).toContainText(
     'Atlas could not complete this request',
   );
-  await expect(page.locator('.stops li')).toContainText('Park to move');
-  await page.getByRole('button', { name: /DAY 2/ }).click();
-  await expect(page.locator('.stops li')).toHaveCount(1);
-  await page.getByRole('button', { name: /DAY 1/ }).click();
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li'),
+  ).toContainText('Park to move');
+  await page.getByLabel('Jump to day').selectOption({ index: 1 });
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li'),
+  ).toHaveCount(1);
+  await page.getByLabel('Jump to day').selectOption({ index: 0 });
   await page.unroute('**/api/itineraries/*');
   await page.getByLabel('Move Park to move to another day').selectOption('2026-10-11');
-  await expect(page.locator('.stops li')).toHaveCount(2);
-  await expect(page.locator('.stops li').last()).toContainText('Park to move');
-  await expect(page.locator('.stops li.selected')).toContainText('Park to move');
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li'),
+  ).toHaveCount(2);
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li').last(),
+  ).toContainText('Park to move');
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li.selected'),
+  ).toContainText('Park to move');
   await expect(page.locator('.map-pin')).toHaveCount(1);
   const { trips: after } = await (await request.get('/api/itineraries')).json();
   const moved = after.find((trip: { id: string }) => trip.id === original.id);
@@ -487,11 +538,18 @@ test('moving a place between days is atomic, preserves details and persists afte
   await page.reload();
   await page.getByRole('button', { name: 'My trips', exact: true }).click();
   await page.getByRole('button', { name: /^Open itinerary:/ }).click();
-  await expect(page.locator('.stops li')).toHaveCount(0);
-  await page.getByRole('button', { name: /DAY 2/ }).click();
-  await expect(page.locator('.stops li')).toHaveCount(2);
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li'),
+  ).toHaveCount(0);
+  await page.getByLabel('Jump to day').selectOption({ index: 1 });
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li'),
+  ).toHaveCount(2);
+  await page.getByRole('button', { name: 'More actions for Park to move' }).click();
   await page.getByLabel('Move Park to move to another day').selectOption('2026-10-10');
-  await expect(page.locator('.stops li')).toHaveCount(1);
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li'),
+  ).toHaveCount(1);
   await expect(page.locator('.map-pin')).toHaveCount(1);
 });
 
@@ -551,7 +609,7 @@ test('driving routes display ordered legs, invalidate on edits and ignore late r
   });
   await page.getByRole('button', { name: 'Calculate driving route' }).click();
   await pending;
-  await page.getByRole('button', { name: /DAY 2/ }).click();
+  await page.getByLabel('Jump to day').selectOption({ index: 1 });
   release();
   await expect(page.getByLabel('Driving route summary')).toHaveCount(0);
   await expect(page.locator('.leaflet-overlay-pane path')).toHaveCount(0);
@@ -562,12 +620,14 @@ test('driving routes display ordered legs, invalidate on edits and ignore late r
       json: { error: { message: 'No driving route connects these stops.' } },
     }),
   );
-  await page.getByRole('button', { name: /DAY 1/ }).click();
+  await page.getByLabel('Jump to day').selectOption({ index: 0 });
   await page.getByRole('button', { name: 'Calculate driving route' }).click();
   await expect(
     page.getByText('No driving route connects these stops.', { exact: true }),
   ).toBeVisible();
-  await expect(page.locator('.stops li')).toHaveCount(2);
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li'),
+  ).toHaveCount(2);
   await expect(page.locator('.leaflet-overlay-pane path')).toHaveCount(0);
 });
 
@@ -598,6 +658,8 @@ test('local Dijkstra walking demo displays a real graph path without saving the 
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
   ).toBe(true);
+  const mobileViews = page.getByRole('navigation', { name: 'Journey Studio views' });
+  await mobileViews.getByRole('button', { name: 'Map', exact: true }).click();
   await expect
     .poll(async () => {
       const map = await page.locator('.leaflet-container').boundingBox();
@@ -618,6 +680,7 @@ test('local Dijkstra walking demo displays a real graph path without saving the 
     })
     .toBe(true);
   await page.screenshot({ path: 'test-results/walking-demo-mobile.png', fullPage: true });
+  await mobileViews.getByRole('button', { name: 'Itinerary' }).click();
   await page.getByRole('button', { name: 'Move Market Square area up' }).click();
   await expect(page.getByLabel('Walking demo result')).toHaveCount(0);
   await expect(page.locator('.leaflet-overlay-pane path')).toHaveCount(0);
@@ -631,7 +694,7 @@ test('local Dijkstra walking demo displays a real graph path without saving the 
   await expect(page.locator('.leaflet-overlay-pane path')).toHaveCount(0);
 });
 
-test('Travel Editions keeps map and list selection linked across desktop and mobile', async ({
+test('Journey Studio keeps map and card selection linked across desktop and mobile', async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -646,7 +709,13 @@ test('Travel Editions keeps map and list selection linked across desktop and mob
   await expect(page.locator('.stop-title[aria-pressed="true"]')).toContainText(
     'Carnegie Museum of Art',
   );
-  await page.locator('.stop-title').filter({ hasText: 'Point State Park' }).click();
+  const parkCard = page.locator('.stop-title').filter({ hasText: 'Point State Park' });
+  await parkCard.hover();
+  await expect(page.locator('.studio-marker-hover')).toHaveAttribute(
+    'title',
+    'Point State Park',
+  );
+  await parkCard.click();
   await expect(page.locator('.map-pin.selected')).toHaveAttribute(
     'title',
     'Point State Park',
@@ -656,11 +725,13 @@ test('Travel Editions keeps map and list selection linked across desktop and mob
     fullPage: true,
   });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole('link', { name: /Show selected stop on map/ }).click();
+  await page.getByRole('button', { name: /Show selected stop on map/ }).click();
   await expect(page.locator('.map-pin.selected')).toBeInViewport();
   await page.screenshot({ path: testInfo.outputPath('planner-mobile-map.png') });
-  await page.getByRole('link', { name: /Return to selected stop/ }).click();
-  await expect(page.locator('.stops li.selected')).toBeInViewport();
+  await page.getByRole('button', { name: /Return to selected stop/ }).click();
+  await expect(
+    page.locator('.studio-day[data-active=true] .studio-stops > li.selected'),
+  ).toBeInViewport();
   await page.screenshot({
     path: testInfo.outputPath('planner-mobile.png'),
     fullPage: true,
@@ -674,28 +745,31 @@ test('responsive planner keeps stops and map reachable from 320px to desktop', a
   await page.getByRole('button', { name: 'Preview the walk' }).click();
   const list = page.locator('#edition-list');
   const map = page.locator('#edition-map');
-  const nav = page.getByRole('navigation', { name: 'Jump within planner' });
+  const nav = page.getByRole('navigation', { name: 'Journey Studio views' });
   for (const width of [1440, 1024, 768, 767, 390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
       .toBe(true);
-    const left = await list.boundingBox();
-    const right = await map.boundingBox();
-    expect(left).toBeTruthy();
-    expect(right).toBeTruthy();
     if (width >= 768) {
       await expect(nav).toBeHidden();
+      const left = await list.boundingBox();
+      const right = await map.boundingBox();
+      expect(left).toBeTruthy();
+      expect(right).toBeTruthy();
       expect(right!.x).toBeGreaterThanOrEqual(left!.x + left!.width - 1);
     } else {
       await expect(nav).toBeVisible();
-      await nav.getByRole('link', { name: 'Map', exact: true }).click();
+      await nav.getByRole('button', { name: 'Map', exact: true }).click();
+      await expect(list).toBeHidden();
       await expect(page.locator('.leaflet-container')).toBeInViewport();
-      await page.getByRole('button', { name: 'Fit day to map' }).click();
-      await nav.getByRole('link', { name: 'Route', exact: true }).click();
+      await page.getByRole('button', { name: 'Fit trip' }).click();
+      await nav.getByRole('button', { name: 'Saved places', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Save a place' })).toBeVisible();
+      await nav.getByRole('button', { name: 'Itinerary' }).click();
       await expect(
         page.getByRole('heading', { name: 'Route for the day' }),
-      ).toBeInViewport();
+      ).toBeVisible();
     }
   }
 });
@@ -737,4 +811,120 @@ test('pinboard pages hold four prints and preserve the selected cover', async ({
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'My trips' })).toBeFocused();
   await expect(page.getByRole('heading', { name: /along the shore/ })).toBeVisible();
+});
+
+test('Journey Studio saves, edits, maps and schedules places after reload', async ({
+  page,
+}) => {
+  await createTrip(page);
+  await addPlace(page, 'Point State Park', '40.4417', '-80.0128');
+  const card = page.locator('.studio-card').filter({ hasText: 'Point State Park' });
+  await card.getByRole('button', { name: /More actions/ }).click();
+  await card.getByRole('button', { name: 'Save for later' }).click();
+  const saved = page.locator('.studio-saved');
+  await expect(saved.locator('.studio-card')).toContainText('Point State Park');
+  await page
+    .getByRole('group', { name: 'Map layer' })
+    .getByRole('button', { name: 'Saved places' })
+    .click();
+  await expect(page.locator('.studio-marker-saved')).toHaveAttribute(
+    'title',
+    'Point State Park',
+  );
+  await page.reload();
+  await page.getByRole('button', { name: 'My trips', exact: true }).click();
+  await page.getByRole('button', { name: 'Open itinerary: Pittsburgh weekend' }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .getByRole('navigation', { name: 'Journey Studio views' })
+    .getByRole('button', { name: 'Saved places' })
+    .click();
+  await saved.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.getByLabel('Notes').fill('Start here if the weather is clear.');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(saved.locator('.studio-card')).toContainText(
+    'Start here if the weather is clear.',
+  );
+  await saved.getByRole('button', { name: /More actions/ }).click();
+  await saved.getByLabel('Schedule Point State Park').selectOption('2026-10-11');
+  await expect(saved.locator('.studio-card')).toHaveCount(0);
+  await page
+    .getByRole('navigation', { name: 'Journey Studio views' })
+    .getByRole('button', { name: 'Itinerary' })
+    .click();
+  await expect(page.locator('.studio-day[data-active=true]')).toContainText(
+    'Point State Park',
+  );
+  await page.getByRole('button', { name: 'List view' }).click();
+  await expect(page.locator('.studio-stops > li')).toHaveCount(1);
+  await expect(page.locator('.studio-stops > li')).toContainText(
+    'Start here if the weather is clear.',
+  );
+  await page.getByRole('button', { name: 'Card view' }).click();
+  await expect(page.locator('.studio-stops > li')).toHaveCount(1);
+  await page
+    .getByRole('navigation', { name: 'Journey Studio views' })
+    .getByRole('button', { name: 'Saved places' })
+    .click();
+  await saved.getByRole('button', { name: 'Save a place' }).click();
+  await page.getByLabel('Place name').fill('A coffee stop for later');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(saved.locator('.studio-card')).toContainText('A coffee stop for later');
+});
+
+test('Journey Studio shows multiple days, supports dragging, and navigates to day 60', async ({
+  page,
+  request,
+}) => {
+  const days = Array.from({ length: 60 }, (_, index) => ({
+    date: new Date(Date.UTC(2027, 0, index + 1)).toISOString().slice(0, 10),
+    places: index
+      ? []
+      : [
+          {
+            id: 'park',
+            name: 'Point State Park',
+            address: 'Pittsburgh',
+            notes: '',
+            category: 'Nature',
+            latitude: 40.4417,
+            longitude: -80.0128,
+          },
+        ],
+  }));
+  expect(
+    (
+      await request.post('/api/itineraries', {
+        data: {
+          name: 'Sixty days',
+          destination: 'Pittsburgh',
+          startDate: days[0].date,
+          endDate: days[59].date,
+          days,
+        },
+      })
+    ).ok(),
+  ).toBe(true);
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'My trips', exact: true }).click();
+  await page.getByRole('button', { name: 'Open itinerary: Sixty days' }).click();
+  await expect(page.getByRole('region', { name: 'Day 2', exact: true })).toBeInViewport();
+  const handle = page.getByTitle('Drag Point State Park');
+  await handle.dragTo(
+    page.getByRole('region', { name: 'Day 2', exact: true }).locator('.studio-add'),
+  );
+  await expect(page.getByRole('region', { name: 'Day 2', exact: true })).toContainText(
+    'Point State Park',
+  );
+  await page.getByRole('button', { name: 'Fit trip' }).click();
+  await expect(page.locator('.map-pin')).toHaveAttribute(
+    'aria-label',
+    'Day 2, stop 1, Point State Park',
+  );
+  await page.getByLabel('Jump to day').selectOption({ index: 59 });
+  await expect(page.getByRole('region', { name: 'Day 60', exact: true })).toBeInViewport({
+    ratio: 0.5,
+  });
+  await expect(page.locator('.map-pin')).toHaveCount(1);
 });

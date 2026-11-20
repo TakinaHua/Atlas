@@ -178,3 +178,66 @@ test('Phase 1 records without dates are displayed without losing destinations or
   await api.put(`/api/itineraries/${trip.id}`).send(shown).expect(200);
   assert.equal(store.get(trip.id).days[0].title, 'Keep title');
 });
+
+test('saved places survive reopen, legacy writes and backup import; scheduling is atomic', async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'atlas-saved-places-'));
+  let store = new TripStore(join(dir, 'test.sqlite'));
+  t.after(() => {
+    store.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+  let api = request(createApp(store));
+  const savedPlace = { ...input().days[0].places[0], id: 'saved-market', name: 'Market' };
+  const created = (
+    await api
+      .post('/api/itineraries')
+      .send({ ...input(), savedPlaces: [savedPlace] })
+      .expect(201)
+  ).body;
+  const { savedPlaces: _omitted, ...legacyWrite } = created;
+  const saved = (
+    await api
+      .put(`/api/itineraries/${created.id}`)
+      .send({ ...legacyWrite, name: 'Updated' })
+      .expect(200)
+  ).body;
+  assert.deepEqual(saved.savedPlaces, [savedPlace]);
+  store.close();
+  store = new TripStore(join(dir, 'test.sqlite'));
+  api = request(createApp(store));
+  assert.deepEqual(
+    (await api.get(`/api/itineraries/${saved.id}`).expect(200)).body,
+    saved,
+  );
+  await api
+    .post('/api/itineraries/import')
+    .send({ trips: [{ ...saved, id: 'backup-copy' }] })
+    .expect(200);
+  assert.deepEqual(
+    (await api.get('/api/itineraries/backup-copy').expect(200)).body.savedPlaces,
+    [savedPlace],
+  );
+  const scheduled = structuredClone(saved);
+  scheduled.days[1].places.push(savedPlace);
+  await api.put(`/api/itineraries/${saved.id}`).send(scheduled).expect(400);
+  await api
+    .put(`/api/itineraries/${saved.id}`)
+    .send({
+      ...saved,
+      savedPlaces: [
+        savedPlace,
+        { ...savedPlace, id: 'duplicate-market', name: ' MARKET ' },
+      ],
+    })
+    .expect(400);
+  assert.deepEqual(
+    (await api.get(`/api/itineraries/${saved.id}`).expect(200)).body,
+    saved,
+  );
+  scheduled.savedPlaces = [];
+  const result = (
+    await api.put(`/api/itineraries/${saved.id}`).send(scheduled).expect(200)
+  ).body;
+  assert.deepEqual(result.savedPlaces, []);
+  assert.deepEqual(result.days[1].places, [savedPlace]);
+});
