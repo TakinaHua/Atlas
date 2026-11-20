@@ -15,16 +15,18 @@ Open **http://127.0.0.1:3000**. Keep the terminal running; Ctrl+C stops both ser
 
 ## Current frontend
 
-The implemented UI uses Next.js App Router, React, TypeScript, custom CSS, and Leaflet. Airbnb-inspired photography and rounded surfaces shape the dashboard; Notion-inspired hierarchy and category labels keep planning details readable. Atlas uses its own typography, colors, and identity.
+The frontend uses Next.js App Router, React, TypeScript, custom CSS, and Leaflet. The By the Rivers homepage presents featured itineraries and a saved-trip pinboard. Journey Studio uses a cork day board and an interactive map for editing trips.
 
 See the [frontend guide](docs/frontend.md) for components, interactions, responsive behavior, and verification, and [DESIGN.md](DESIGN.md) for visual rules and photo credits. The active implementation is in `frontend/`; archived HTML/vanilla files are historical references.
 
 ## Review the frontend
 
-- Choose **Explore a sample trip** to explore an unsaved three-day Hawaii itinerary with two mapped stops. Choose **Add to my trips** to keep it, or **Plan a trip** to start your own.
+- Choose **Preview the walk** on the Pittsburgh cover or **Preview the coastal itinerary** on the Oʻahu cover. Choose **Add to my trips** to keep a sample or **Plan a trip** to start your own.
 - Search a U.S. city or state in the trip form and select a suggestion to center the map. Text-only destinations remain supported. See [destination search](docs/destination-search.md).
 - Open a trip, choose a day, and search for a place/address. Select a result to fill its coordinates, or enter details manually.
-- Edit, reorder, move between days, select, or remove stops. Use **Calculate driving route** for road geometry and estimated time; every stop needs a map location.
+- Scroll the board to browse whole day columns. Drag a card to reorder it or move it to another day. Use **Add day** on the final column to extend the trip.
+- The map follows the leftmost day by default. Use **Map settings** to choose which days or saved places to show. **Fit trip** shows all scheduled stops. Use **Calculate driving route** on a day with at least two stops that all have map locations.
+- Located stops can show a credited photo automatically. When the card uses a photo of a nearby landmark, the caption identifies it. Stops without a usable photo appear as pinned notes.
 - Return to **My trips** to switch trips. **Search your trips** filters saved cards by trip name or destination without changing saved data. Changes survive refresh, server restarts, and opening another browser.
 - Export JSON backups, or choose **Import browser trips** to copy older `atlas.preview.trips.v1` and `atlas.trips.v1` records into SQLite. Duplicate IDs are skipped; the original browser data is never removed.
 
@@ -64,7 +66,7 @@ Stops can now move between itinerary days while preserving their details and coo
 
 Ordered driving routes are available through OSRM, with map geometry, distance, and estimated time. See [road-routing setup and tests](docs/road-routing.md). An independent, limited Pittsburgh walking-graph demonstration is also available.
 
-Choose **Explore walking demo** to try Atlas’s own Dijkstra implementation. See [algorithm, dataset and limitations](docs/dijkstra-demo.md).
+Choose **Preview the walk** on the Pittsburgh cover to try Atlas’s own Dijkstra implementation. See [algorithm, dataset and limitations](docs/dijkstra-demo.md).
 
 For the final prototype review, follow [the acceptance checklist](docs/prototype-acceptance.md). `npm run test:production` builds an isolated production frontend, uses a temporary database and available local ports, restarts the compiled API, and verifies persistence/proxy/local routing. It does not contact search or routing providers.
 

@@ -4,7 +4,7 @@ Status: implementation is ready for user acceptance testing. This is a local pro
 
 ## Included
 
-- Redesigned responsive frontend: photo-led discovery, saved-trip search, compact stop rows, category labels, day counts, linked selection, and native editing dialogs. See the [frontend guide](frontend.md) and [design rules](../DESIGN.md).
+- The responsive frontend includes the saved-trip pinboard, draggable stop cards, automatic place photos, day counts, linked map selection, and editing dialogs. See the [frontend guide](frontend.md) and [design rules](../DESIGN.md).
 
 - Create/edit/delete trips and dates; U.S. city/state suggestions and destination map centering.
 - Search names/addresses through Photon; confirm a result and save coordinates automatically; manual fallback.
@@ -36,13 +36,13 @@ The production test deliberately does not use or modify `backend/data/atlas.sqli
 
 1. Run `npm run dev` once and open http://127.0.0.1:3000. If it is already running, use that instance; duplicate starts cause port conflicts.
 2. Create “Prototype review”, select Pittsburgh from destination suggestions, and choose two days. Verify the end date cannot precede the start date.
-3. Add two nearby places with search (e.g. Point State Park and Market Square). Confirm the result address before selecting. Add a category/note, save, and check the pins.
-4. Reorder a place. Move it to day 2, verify details and selection, then move it back. Refresh and reopen; verify both days.
-5. Calculate the driving route. Confirm ordered leg names, geometry, miles and estimated minutes. Edit or reorder a stop; confirm the old route disappears. Recalculate.
+3. Add Point State Park and Market Square through place search. Confirm each result address, add a category or note, save, and check the map pins. Verify that photos have credits, and that any nearby photo identifies its subject.
+4. Drag to reorder a stop, then drag it to day 2. Check its details and selection, then move it back using **More**. Scroll the board and confirm the map follows the leftmost day. Try **Choose days** in **Map settings**, then use **Add day** on the final column. Refresh and confirm the stops and added date persisted.
+5. Return to day 1 and select **Follow leftmost day** in **Map settings**. Calculate the driving route and confirm its ordered legs, geometry, miles, and estimated minutes. Edit or reorder a stop and confirm the old route disappears. Recalculate.
 6. Export a JSON backup. Import the same file: existing trip IDs should be skipped, not duplicated. Keep a copy of the backup if desired.
 7. Stop the development process with Ctrl+C, start it again, and reopen the trip. Names, dates, stops and notes should remain; calculated routes must be requested again.
 8. In another tab, edit/save the same trip. A stale save from the first tab should show a conflict; reload rather than overwrite newer data.
-9. Return to the dashboard and choose **Explore walking demo**. Open **Shortest walking path · Pittsburgh demo**, then **Find shortest demo path**. Check the 424-meter example, map line and expanded search statistics. The sample is unsaved unless you choose Add to my trips.
+9. Return to the Pittsburgh cover and choose **Preview the walk**. Open **Shortest walking path · Pittsburgh demo**, then **Find shortest demo path**. Check the 424-meter example, map line and expanded search statistics. The sample is unsaved unless you choose Add to my trips.
 10. On the dashboard, filter trips by name and destination, try a query with no matches, and use **Clear search**. Confirm the saved trip count and exported backup still include all trips. Check a narrow/mobile window. Pin/path bounds should refit. If tiles fail, editing still works and route coordinates remain; restore internet for the basemap.
 11. Delete only your disposable review trip when finished. Record anything unexpected with the action, expected behavior and actual result.
 
@@ -50,7 +50,7 @@ The production test deliberately does not use or modify `backend/data/atlas.sqli
 
 - No accounts, authentication, multi-user ownership, or public production hosting. Use locally.
 - No automatic best-stop-order optimization, visit scheduling, budgets, or AI features. An Unscheduled list and visit-time controls remain optional future decisions.
-- Destination photos are curated for Oʻahu/Honolulu and Pittsburgh; other destinations receive a labeled Atlas fallback.
+- Wikimedia photo availability varies. Destination cards can use a labeled fallback, and stop cards can show a labeled nearby view or a pinned note.
 - GeoNames city search omits many small towns and territories. Photon coverage varies; confirm results.
 - Public Photon/OSRM services can throttle or fail and require internet. They are not production service guarantees. Driving estimates exclude live traffic/visits.
 - The custom Dijkstra graph covers a small Pittsburgh area only. It is a walking-distance demonstration with incomplete access modeling, not navigation guidance or a national custom driving engine. Snap gaps are excluded from graph distance.

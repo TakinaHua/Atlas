@@ -1,19 +1,22 @@
 # Cache behavior and verification
 
-Audited October 15, 2026. Provider caches are shared by requests handled by one API instance; they are not SQLite persistence.
+Provider caches are in memory and shared by requests handled by one API instance.
 
-| Data                | Maximum entries | Lifetime |
-| ------------------- | --------------- | -------- |
-| Photon place search | 200             | 24 hours |
-| OSRM driving routes | 50              | 1 hour   |
+| Data                | Maximum entries | Lifetime                                       |
+| ------------------- | --------------- | ---------------------------------------------- |
+| Photon place search | 200             | 24 hours                                       |
+| OSRM driving routes | 50              | 1 hour                                         |
+| Wikimedia photos    | 200 shared      | 24 hours for matches, 1 hour for empty results |
 
-Keys contain the complete provider request URL. Search keys include trimmed query text and optional location bias. Route keys include ordered coordinates and route options. Changing the stop order or coordinates therefore cannot reuse the old route.
+Photon and OSRM keys contain the complete provider request URL. Search keys include trimmed query text and optional location bias. Route keys include ordered coordinates and route options. Changing the stop order or coordinates therefore cannot reuse the old route.
 
 The shared `backend/src/provider-cache.ts` uses a monotonic clock. Lifetime starts when a successful response finishes; reads do not extend it. Expired entries are removed before lookup/insertion. At capacity, the least recently used entry is evicted. Returned values are copied so one caller cannot corrupt later results.
 
 Simultaneous identical requests share one provider call. Different uncached requests remain subject to the existing per-provider limit: one outbound request at a time and at least 1.1 seconds between starts. Provider HTTP 429 triggers a fixed 60-second backoff. Valid cache hits remain available during backoff. Failed calls release pending state and are never cached. Valid empty search results are cached; a response containing only structurally malformed features is an error, allowing retry.
 
-Mutable API responses, search results, route results, and API errors carry `Cache-Control: no-store` so browsers/proxies do not independently retain them. The bundled destination catalog explicitly overrides this with `public, max-age=3600`. The catalog is a static dataset, not a per-user itinerary.
+The shared photo cache uses the destination catalog ID or stop name and coordinates. It coalesces identical lookups, runs at most three lookups concurrently, and caps pending work at 64. Wikimedia HTTP 429 pauses uncached lookups for one minute. Provider errors are retryable.
+
+Mutable API responses, place search results, route results, and API errors carry `Cache-Control: no-store`. The destination catalog and its photo responses are publicly cacheable. Stop photo responses use private browser caching because their requests contain stop details. The board revalidates those responses with Atlas, which serves cached Wikimedia results when available.
 
 ## Verification
 

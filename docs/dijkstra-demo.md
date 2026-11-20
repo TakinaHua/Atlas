@@ -1,6 +1,6 @@
 # Independent Dijkstra walking demonstration
 
-On the dashboard, choose **Explore walking demo**. Open **Shortest walking path · Pittsburgh demo** and select **Find shortest demo path**. The sample stays unsaved until explicitly added to your trips. The same control works with 2–30 located itinerary stops within the snapshot. Road driving routes remain a separate OSRM option.
+On the Pittsburgh cover, choose **Preview the walk**. Open **Shortest walking path · Pittsburgh demo** and select **Find shortest demo path**. The sample stays unsaved until explicitly added to your trips. The same control works with 2–30 located itinerary stops within the snapshot. Road driving routes remain a separate OSRM option.
 
 ## Algorithm and graph
 

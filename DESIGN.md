@@ -1,6 +1,6 @@
 ---
 name: Atlas Travel Editions
-description: An editorial travel workspace pairing a linen day board with an interactive trip map.
+description: An editorial travel workspace pairing a cork day board with an interactive trip map.
 colors:
   wine: '#783f43'
   paper: '#f8f5ef'
@@ -36,7 +36,7 @@ typography:
   studio-section:
     fontSize: '28px'
   studio-day:
-    fontSize: '25px'
+    fontSize: '22px'
   studio-route:
     fontSize: '22px'
   studio-shelf:
@@ -110,7 +110,7 @@ The category tags retain their existing pastel colors. The interactive basemap u
 
 Use the local serif stack for the Atlas wordmark, trip titles, stop names, dialog titles, and section headings. System sans serif carries dates, addresses, buttons, and search results. Use the local italic serif for the traveler’s notes on ruled cards. No downloaded font is required.
 
-The dashboard title is the largest text. In Journey Studio, size the trip title from 33–56px on desktop and 28–38px on mobile. Studio section titles are 28px on desktop, day headings are 25px, and stop names are 19px. Use 13px for secondary controls, 12px for dates and addresses, and 11px for photo credits. Keep the traveler’s actual names and notes readable when they wrap.
+The dashboard title is the largest text. In Journey Studio, size the trip title from 33–56px on desktop and 28–38px on mobile. Studio section titles are 28px on desktop, day headings are 22px, and stop names are 19px. Align the date and stop count beside the day heading. Use 13px for secondary controls, 12px for dates and addresses, and 11px for photo credits. Keep the traveler’s actual names and notes readable when they wrap.
 
 ## Layout
 
@@ -153,7 +153,7 @@ Use 4px planner controls, 2px postcard corners, square board and map edges, and 
 - Don't draw an inferred route between stops before a route calculation succeeds.
 - Don't add dashboard promotional sections between the primary action and saved trips.
 
-Planner implementation lives in `frontend/app/journey-studio.css`, `frontend/components/JourneyStudio.tsx`, `frontend/components/JourneyCard.tsx`, `frontend/components/JourneyRoutes.tsx`, and `frontend/components/TripMap.tsx`. Each of the bundled postcard photos links to its source and license from the print caption. The files are resized as WebP and cropped in the UI.
+Planner implementation lives in `frontend/app/journey-studio.css`, `frontend/components/JourneyStudio.tsx`, `frontend/components/JourneyCard.tsx`, `frontend/components/JourneyRoutes.tsx`, and `frontend/components/TripMap.tsx`. Bundled and automatically matched photos share the same pin, print mount, and linked credit. A nearby view names its subject in the caption. Match failures and missing coordinates use the pinned-paper card.
 
 ## Homepage · By the rivers
 
